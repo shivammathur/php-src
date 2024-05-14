@@ -18,6 +18,7 @@ on:
       - PHP-8.2
       - PHP-8.3
       - master
+      - ubuntu24.04
   pull_request:
     paths-ignore:
       - docs/**
@@ -43,7 +44,6 @@ env:
   CXX: ccache g++
 jobs:
   LINUX_X64:
-    if: github.repository == 'php/php-src' || github.event_name == 'pull_request'
     services:
       mysql:
         image: mysql:8.3
@@ -148,7 +148,6 @@ jobs:
         if: ${{ !matrix.asan }}
         uses: ./.github/actions/verify-generated-files
   MACOS_DEBUG_NTS:
-    if: github.repository == 'php/php-src' || github.event_name == 'pull_request'
     strategy:
       fail-fast: false
       matrix:
@@ -191,7 +190,6 @@ jobs:
       - name: Verify generated files are up to date
         uses: ./.github/actions/verify-generated-files
   WINDOWS:
-    if: github.repository == 'php/php-src' || github.event_name == 'pull_request'
     name: WINDOWS_X64_ZTS
     runs-on: windows-2019
     env:
@@ -218,7 +216,6 @@ jobs:
         run: .github/scripts/windows/test.bat
   BENCHMARKING:
     name: BENCHMARKING
-    if: github.repository == 'php/php-src' || github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     steps:
       - name: git checkout
