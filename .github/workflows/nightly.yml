@@ -3,12 +3,12 @@ on:
   schedule:
    - cron: "0 1 * * *"
   workflow_dispatch: ~
+  push:
 permissions:
   contents: read
 jobs:
   GENERATE_MATRIX:
     name: Generate Matrix
-    if: github.repository == 'php/php-src' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       branches: ${{ steps.set-matrix.outputs.branches }}
@@ -346,7 +346,6 @@ jobs:
         with:
           token: ${{ secrets.ACTION_MONITORING_SLACK }}
   COVERAGE_DEBUG_NTS:
-    if: github.repository == 'php/php-src' || github.event_name == 'workflow_dispatch'
     services:
       mysql:
         image: mysql:8.3
@@ -844,7 +843,6 @@ jobs:
         with:
           token: ${{ secrets.ACTION_MONITORING_SLACK }}
   PECL:
-    if: github.repository == 'php/php-src' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     env:
       CC: ccache gcc
