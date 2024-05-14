@@ -80,9 +80,7 @@ jobs:
             zts: true
             asan: true
     name: "LINUX_X64_${{ matrix.debug && 'DEBUG' || 'RELEASE' }}_${{ matrix.zts && 'ZTS' || 'NTS' }}${{ matrix.asan && '_ASAN' || '' }}"
-    runs-on: ubuntu-${{ !matrix.asan && '22' || '20' }}.04
-    container:
-      image: ${{ matrix.asan && 'ubuntu:23.04' || null }}
+    runs-on: ubuntu-${{ !matrix.asan && '24' || '22' }}.04
     steps:
       - name: git checkout
         uses: actions/checkout@v4
@@ -221,7 +219,7 @@ jobs:
   BENCHMARKING:
     name: BENCHMARKING
     if: github.repository == 'php/php-src' || github.event_name == 'pull_request'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: git checkout
         uses: actions/checkout@v4
