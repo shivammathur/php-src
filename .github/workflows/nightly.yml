@@ -137,7 +137,7 @@ jobs:
         zts: [true, false]
         include: ${{ fromJson(needs.GENERATE_MATRIX.outputs.matrix-include) }}
     name: "${{ matrix.branch.name }}_LINUX_X64${{ matrix.name }}_${{ matrix.debug && 'DEBUG' || 'RELEASE' }}_${{ matrix.zts && 'ZTS' || 'NTS' }}"
-    runs-on: ubuntu-${{ (matrix.branch.version.minor >= 3 && !matrix.asan) && '22.04' || '20.04' }}
+    runs-on: ubuntu-${{ (matrix.branch.version.minor >= 3 && !matrix.asan) && '24.04' || '22.04' }}
     steps:
       - name: git checkout
         uses: actions/checkout@v4
@@ -370,7 +370,7 @@ jobs:
           FIREBIRD_DATABASE: test.fdb
           FIREBIRD_USER: test
           FIREBIRD_PASSWORD: test
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: git checkout
         uses: actions/checkout@v4
@@ -423,7 +423,7 @@ jobs:
           - { branch: { name: 'PHP-8.2', ref: 'PHP-8.2', major: 8, minor: 2 }, type: 'verify_type_inference' }
           - { branch: { name: 'PHP-8.3', ref: 'PHP-8.3', major: 8, minor: 3 }, type: 'verify_type_inference' }
     name: "${{ matrix.branch.name }}_COMMUNITY_${{ matrix.type }}"
-    runs-on: ubuntu-${{ matrix.branch.version.minor >= 3 && '22.04' || '20.04' }}
+    runs-on: ubuntu-${{ matrix.branch.version.minor >= 3 && '24.04' || '22.04' }}
     env:
       ASAN_OPTIONS: exitcode=139
       UBSAN_OPTIONS: print_stacktrace=1
@@ -628,7 +628,7 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.GENERATE_MATRIX.outputs.branches) }}
     name: "${{ matrix.branch.name }}_OPCACHE_VARIATION"
-    runs-on: ubuntu-${{ matrix.branch.version.minor >= 3 && '22.04' || '20.04' }}
+    runs-on: ubuntu-${{ matrix.branch.version.minor >= 3 && '24.04' || '22.04' }}
     steps:
       - name: git checkout
         uses: actions/checkout@v4
@@ -702,7 +702,7 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.GENERATE_MATRIX.outputs.branches) }}
     name: "${{ matrix.branch.name }}_MSAN"
-    runs-on: ubuntu-${{ matrix.branch.version.minor >= 3 && '22.04' || '20.04' }}
+    runs-on: ubuntu-${{ matrix.branch.version.minor >= 3 && '24.04' || '22.04' }}
     steps:
       - name: git checkout
         uses: actions/checkout@v4
@@ -800,7 +800,7 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.GENERATE_MATRIX.outputs.branches) }}
     name: "${{ matrix.branch.name }}_LIBMYSQLCLIENT"
-    runs-on: ubuntu-${{ matrix.branch.version.minor >= 3 && '22.04' || '20.04' }}
+    runs-on: ubuntu-${{ matrix.branch.version.minor >= 3 && '24.04' || '22.04' }}
     steps:
       - name: git checkout
         uses: actions/checkout@v4
@@ -845,7 +845,7 @@ jobs:
           token: ${{ secrets.ACTION_MONITORING_SLACK }}
   PECL:
     if: github.repository == 'php/php-src' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       CC: ccache gcc
       CXX: ccache g++
