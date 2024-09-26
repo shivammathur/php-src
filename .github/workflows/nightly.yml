@@ -890,6 +890,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             ccache \
             libmemcached-dev \
+            libmagickwand-dev \
             bison \
             re2c
       - name: ccache
