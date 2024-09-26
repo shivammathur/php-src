@@ -35,8 +35,8 @@ runs:
         export PDO_FIREBIRD_TEST_USER=test
         export ODBC_TEST_USER="odbc_test"
         export ODBC_TEST_PASS="password"
-        export ODBC_TEST_DSN="Driver={ODBC Driver 17 for SQL Server};Server=127.0.0.1;Database=odbc;uid=$ODBC_TEST_USER;pwd=$ODBC_TEST_PASS"
-        export PDO_ODBC_TEST_DSN="odbc:Driver={ODBC Driver 17 for SQL Server};Server=127.0.0.1;Database=pdo_odbc;uid=$ODBC_TEST_USER;pwd=$ODBC_TEST_PASS"
+        export ODBC_TEST_DSN="Driver={ODBC Driver 18 for SQL Server};Server=127.0.0.1;Database=odbc;uid=$ODBC_TEST_USER;pwd=$ODBC_TEST_PASS"
+        export PDO_ODBC_TEST_DSN="odbc:Driver={ODBC Driver 18 for SQL Server};Server=127.0.0.1;Database=pdo_odbc;uid=$ODBC_TEST_USER;pwd=$ODBC_TEST_PASS"
         export SKIP_IO_CAPTURE_TESTS=1
         export STACK_LIMIT_DEFAULTS_CHECK=1
         sapi/cli/php run-tests.php -P -q ${{ inputs.runTestsParameters }} \
