@@ -374,7 +374,7 @@ jobs:
       matrix:
         debug: [true, false]
         zts: [true, false]
-        os: ['13', inputs.macos_arm64_version]
+        arch: ['X64', 'ARM64']
         exclude:
           - arch: ${{ !inputs.run_macos_arm64 && 'ARM64' || '*never*' }}
     name: "MACOS_${{ matrix.arch }}_${{ matrix.debug && 'DEBUG' || 'RELEASE' }}_${{ matrix.zts && 'ZTS' || 'NTS' }}"
@@ -401,7 +401,7 @@ jobs:
       - name: Test
         uses: ./.github/actions/test-macos
       - name: Test Tracing JIT
-        if: matrix.os != inputs.macos_arm64_version || !matrix.zts
+        if: matrix.arch == 'X64' || !matrix.zts
         uses: ./.github/actions/test-macos
         with:
           jitType: tracing
@@ -413,7 +413,7 @@ jobs:
           runTestsParameters: >-
             -d opcache.enable_cli=1
       - name: Test Function JIT
-        if: matrix.os != inputs.macos_arm64_version || !matrix.zts
+        if: matrix.arch == 'X64' || !matrix.zts
         uses: ./.github/actions/test-macos
         with:
           jitType: function
