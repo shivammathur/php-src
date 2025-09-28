@@ -380,7 +380,7 @@ jobs:
         exclude:
           - arch: ${{ !inputs.run_macos_arm64 && 'ARM64' || '*never*' }}
     name: "MACOS_${{ matrix.arch }}_${{ matrix.debug && 'DEBUG' || 'RELEASE' }}_${{ matrix.zts && 'ZTS' || 'NTS' }}"
-    runs-on: macos-${{ matrix.arch == 'X64' && '13' || inputs.macos_arm64_version }}
+    runs-on: macos-${{ matrix.arch == 'X64' && '15-intel' || inputs.macos_arm64_version }}
     steps:
       - name: git checkout
         uses: actions/checkout@v5
