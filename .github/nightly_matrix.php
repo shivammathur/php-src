@@ -57,9 +57,11 @@ if ($discard_cache) {
     @unlink(get_branch_commit_cache_file_path());
 }
 $branch = $argv[3] ?? 'master';
-$branches = $branch === 'master'
-    ? get_branches()
-    : [['ref' => $branch, 'version' => get_current_version()]];
+// $branches = $branch === 'master'
+//     ? get_branches()
+//     : [['ref' => $branch, 'version' => get_current_version()]];
+
+$branches = get_branches();
 
 $f = fopen(getenv('GITHUB_OUTPUT'), 'a');
 fwrite($f, 'branches=' . json_encode($branches, JSON_UNESCAPED_SLASHES) . "\n");
