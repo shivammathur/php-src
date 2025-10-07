@@ -37,12 +37,8 @@ zend_result zend_jit_resolve_tsrm_ls_cache_offsets(
 	}
 
 #if defined(__x86_64__)
-	size_t *ti;
-	__asm__ __volatile__(
-		"leaq __tsrm_ls_cache(%%rip),%0"
-		: "=r" (ti));
-	*module_offset = ti[2];
-	*module_index = ti[1] * 8;
+	*module_index  = (size_t)-1;
+	*module_offset = (size_t)-1;
 
 	return SUCCESS;
 #endif
@@ -66,6 +62,17 @@ void *zend_jit_tsrm_ls_cache_address(
 			: "r" (tcb_offset)
 		);
 		return addr;
+	}
+	if (module_index == (size_t)-1 && module_offset == (size_t)-1) {
+		void *tlvp;
+		__asm__ __volatile__(
+			"leaq __tsrm_ls_cache@TLVP(%%rip), %0\n"
+			: "=&r" (tlvp)
+			:
+			: "memory"
+		);
+		void *(*thunk)(void*) = *(void **)tlvp;
+		return thunk(tlvp);
 	}
 	if (module_index != (size_t)-1 && module_offset != (size_t)-1) {
 		char *base;
