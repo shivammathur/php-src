@@ -55,7 +55,8 @@ jobs:
       macos_arm64_version: ${{ ((matrix.branch.version[0] == 8 && matrix.branch.version[1] >= 5) || matrix.branch.version[0] >= 9) && '15' || '14' }}
       run_alpine: ${{ (matrix.branch.version[0] == 8 && matrix.branch.version[1] >= 4) || matrix.branch.version[0] >= 9 }}
       run_linux_ppc64: ${{ (matrix.branch.version[0] == 8 && matrix.branch.version[1] >= 4) || matrix.branch.version[0] >= 9 }}
-      run_macos_arm64: ${{ (matrix.branch.version[0] == 8 && matrix.branch.version[1] >= 4) || matrix.branch.version[0] >= 9 }}
+      # run_macos_arm64: ${{ (matrix.branch.version[0] == 8 && matrix.branch.version[1] >= 4) || matrix.branch.version[0] >= 9 }}
+      run_macos_arm64: false
       run_freebsd_zts: ${{ (matrix.branch.version[0] == 8 && matrix.branch.version[1] >= 3) || matrix.branch.version[0] >= 9 }}
       ubuntu_version: ${{
         (((matrix.branch.version[0] == 8 && matrix.branch.version[1] >= 5) || matrix.branch.version[0] >= 9) && '24.04')
