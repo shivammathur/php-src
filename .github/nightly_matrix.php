@@ -2,9 +2,9 @@
 
 const BRANCHES = [
     ['ref' => 'master', 'version' => [8, 6]],
-    ['ref' => 'PHP-8.5', 'version' => [8, 5]],
-    ['ref' => 'PHP-8.4', 'version' => [8, 4]],
-    ['ref' => 'PHP-8.3', 'version' => [8, 3]],
+    //['ref' => 'PHP-8.5', 'version' => [8, 5]],
+    //['ref' => 'PHP-8.4', 'version' => [8, 4]],
+    //['ref' => 'PHP-8.3', 'version' => [8, 3]],
     // ['ref' => 'PHP-8.2', 'version' => [8, 2]],
     // ['ref' => 'PHP-8.1', 'version' => [8, 1]],
 ];
