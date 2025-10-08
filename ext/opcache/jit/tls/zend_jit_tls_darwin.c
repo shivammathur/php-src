@@ -26,15 +26,15 @@
 
 TSRMLS_CACHE_EXTERN();
 
-typedef struct _tls_descriptor {
-	void *(*thunk)(struct _tls_descriptor *);
+struct TLSDescriptor {
+	void *(*thunk)(struct TLSDescriptor *);
 	uintptr_t key;
 	uintptr_t offset;
-} tls_descriptor;
+};
 
 #if defined(__x86_64__)
-static void *(*zend_jit_darwin_tlsdesc_thunk)(tls_descriptor *);
-static tls_descriptor *zend_jit_darwin_tlsdesc;
+static void *(*zend_jit_darwin_tls_thunk)(struct TLSDescriptor *);
+static struct TLSDescriptor *zend_jit_darwin_tls_desc;
 #endif
 
 zend_result zend_jit_resolve_tsrm_ls_cache_offsets(
@@ -48,19 +48,19 @@ zend_result zend_jit_resolve_tsrm_ls_cache_offsets(
 	}
 
 #if defined(__x86_64__)
-	const tls_descriptor *tlsdesc_local;
+	const struct TLSDescriptor *desc;
 	__asm__ __volatile__(
 		"leaq __tsrm_ls_cache@TLVP(%%rip), %0\n\t"
 		"movq (%0), %0"
-		: "=&r" (tlsdesc_local)
+		: "=&r" (desc)
 		:
 		: "memory"
 	);
 
-	zend_jit_darwin_tlsdesc_thunk = tlsdesc_local->thunk;
-	zend_jit_darwin_tlsdesc = (tls_descriptor *)tlsdesc_local;
+	zend_jit_darwin_tls_thunk = desc->thunk;
+	zend_jit_darwin_tls_desc  = (struct TLSDescriptor *)desc;
 
-	*tcb_offset = 0;
+	*tcb_offset   = 0;
 	*module_index = (size_t)-1;
 	*module_offset = (size_t)-1;
 
@@ -73,8 +73,8 @@ zend_result zend_jit_resolve_tsrm_ls_cache_offsets(
 ZEND_API void *zend_jit_tsrm_ls_cache_ptr(void)
 {
 #if defined(__x86_64__)
-	return zend_jit_darwin_tlsdesc_thunk
-		? zend_jit_darwin_tlsdesc_thunk(zend_jit_darwin_tlsdesc)
+	return zend_jit_darwin_tls_thunk
+		? zend_jit_darwin_tls_thunk(zend_jit_darwin_tls_desc)
 		: NULL;
 #else
 	return NULL;
@@ -99,8 +99,8 @@ void *zend_jit_tsrm_ls_cache_address(
 		return addr;
 	}
 	if (module_index == (size_t)-1 && module_offset == (size_t)-1) {
-		return zend_jit_darwin_tlsdesc_thunk
-			? zend_jit_darwin_tlsdesc_thunk(zend_jit_darwin_tlsdesc)
+		return zend_jit_darwin_tls_thunk
+			? zend_jit_darwin_tls_thunk(zend_jit_darwin_tls_desc)
 			: NULL;
 	}
 	if (module_index != (size_t)-1 && module_offset != (size_t)-1) {
