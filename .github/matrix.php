@@ -172,13 +172,24 @@ if ($discard_cache) {
     @unlink(get_branch_commit_cache_file_path());
 }
 $branch = $argv[3] ?? 'master';
-$nightly = $trigger === 'schedule' || $trigger === 'workflow_dispatch';
+$labels = json_decode($argv[4] ?? '[]', true) ?? [];
+if (is_string($labels)) {
+    $labels = preg_split('/[\r\n,]+/', $labels);
+    $labels = array_filter(array_map(static function ($label) {
+        $label = trim($label);
+        if ($label === '') {
+            return null;
+        }
+
+        return str_contains($label, ':') ? $label : 'CI: ' . $label;
+    }, $labels));
+} else {
+    $labels = array_column($labels, 'name');
+}
+$nightly = $trigger === 'schedule' || ($trigger === 'workflow_dispatch' && $labels === []);
 $branches = $nightly && $branch === 'master'
     ? get_branches()
     : [['name' => 'Suite', 'ref' => $branch, 'version' => get_current_version()]];
-
-$labels = json_decode($argv[4] ?? '[]', true) ?? [];
-$labels = array_column($labels, 'name');
 $all_variations = $nightly || in_array('CI: All variations', $labels, true);
 
 $repository = $argv[5] ?? null;
