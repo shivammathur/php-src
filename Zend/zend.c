@@ -1458,7 +1458,8 @@ ZEND_API ZEND_COLD void zend_error_zstr_at(
 	/* Emit any delayed error before handling fatal error */
 	if ((type & E_FATAL_ERRORS) && !(type & E_DONT_BAIL) && EG(errors).size) {
 		zend_err_buf errors_buf = EG(errors);
-		EG(errors).size = 0;
+		/* Nested error handling may start a new recording session while we replay. */
+		memset(&EG(errors), 0, sizeof(EG(errors)));
 
 		bool orig_record_errors = EG(record_errors);
 		EG(record_errors) = false;
@@ -1773,7 +1774,8 @@ ZEND_API void zend_begin_record_errors(void)
 {
 	ZEND_ASSERT(!EG(record_errors) && "Error recording already enabled");
 	EG(record_errors) = true;
-	EG(errors).size = 0;
+	/* Start with a fresh buffer: EG(errors) may be detached and restored on reentry. */
+	memset(&EG(errors), 0, sizeof(EG(errors)));
 }
 
 ZEND_API void zend_emit_recorded_errors_ex(uint32_t num_errors, zend_error_info **errors)
@@ -1786,8 +1788,11 @@ ZEND_API void zend_emit_recorded_errors_ex(uint32_t num_errors, zend_error_info 
 
 ZEND_API void zend_emit_recorded_errors(void)
 {
+	zend_err_buf errors_buf = EG(errors);
 	EG(record_errors) = false;
-	zend_emit_recorded_errors_ex(EG(errors).size, EG(errors).errors);
+	memset(&EG(errors), 0, sizeof(EG(errors)));
+	zend_emit_recorded_errors_ex(errors_buf.size, errors_buf.errors);
+	EG(errors) = errors_buf;
 }
 
 ZEND_API void zend_free_recorded_errors(void)
@@ -1800,7 +1805,7 @@ ZEND_API void zend_free_recorded_errors(void)
 		zend_error_info *info = EG(errors).errors[i];
 		zend_string_release(info->filename);
 		zend_string_release(info->message);
-		efree_size(info, sizeof(zend_error_info));
+		efree(info);
 	}
 	efree(EG(errors).errors);
 	memset(&EG(errors), 0, sizeof(EG(errors)));
