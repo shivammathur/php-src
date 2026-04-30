@@ -7976,10 +7976,7 @@ static int zend_jit_escape_if_undef(zend_jit_ctx *jit, int var, uint32_t flags, 
 	jit_LOAD_IP_ADDR(jit, opline - 1);
 
 	/* We can't use trace_escape() because opcode handler may be overridden by JIT */
-	zend_jit_op_array_trace_extension *jit_extension =
-		(zend_jit_op_array_trace_extension*)ZEND_FUNC_INFO(jit->current_op_array);
-	size_t offset = jit_extension->offset;
-	ir_ref ref = ir_CONST_ADDR(ZEND_OP_TRACE_INFO((opline - 1), offset)->orig_handler);
+	ir_ref ref = zend_jit_orig_opline_handler(jit);
 	if (GCC_GLOBAL_REGS || ZEND_VM_KIND == ZEND_VM_KIND_TAILCALL) {
 		ir_TAILCALL(IR_OPCODE_HANDLER_RET, ref);
 	} else {
