@@ -157,6 +157,7 @@ static void snmp_session_free(php_snmp_session **session) /* {{{ */
 		PHP_SNMP_SESSION_FREE(community);
 		PHP_SNMP_SESSION_FREE(securityName);
 		PHP_SNMP_SESSION_FREE(contextEngineID);
+		PHP_SNMP_SESSION_FREE(contextName);
 		efree(*session);
 		*session = NULL;
 	}
@@ -1201,7 +1202,10 @@ static ZEND_ATTRIBUTE_NONNULL_ARGS(2) bool snmp_session_set_security(struct snmp
 
 	/* Setting contextName if specified */
 	if (contextName) {
-		session->contextName = ZSTR_VAL(contextName);
+		if (session->contextName) {
+			efree(session->contextName);
+		}
+		session->contextName = estrndup(ZSTR_VAL(contextName), ZSTR_LEN(contextName));
 		session->contextNameLen = ZSTR_LEN(contextName);
 	}
 
@@ -1382,12 +1386,32 @@ static void php_snmp(INTERNAL_FUNCTION_PARAMETERS, int st, int version)
 		}
 	} else {
 		zval *object = getThis();
+		php_snmp_session *session_template;
 		snmp_object = Z_SNMP_P(object);
-		session = snmp_object->session;
-		if (!session) {
+		if (!snmp_object->session) {
 			zend_throw_error(NULL, "Invalid or uninitialized SNMP object");
 			php_free_objid_query(&objid_query, oid_ht, value_ht, st);
 			RETURN_THROWS();
+		}
+
+		/* Net-SNMP mutates the input session during open, so object calls must not reuse the stored session directly. */
+		session_template = snmp_object->session;
+		session = emalloc(sizeof(*session));
+		memcpy(session, session_template, sizeof(*session));
+
+		session->peername = session_template->peername ? estrdup(session_template->peername) : NULL;
+		session->community = NULL;
+		session->securityName = session_template->securityName ? estrndup(session_template->securityName, session_template->securityNameLen) : NULL;
+		session->contextEngineID = NULL;
+		session->contextName = session_template->contextName ? estrndup(session_template->contextName, session_template->contextNameLen) : NULL;
+
+		if (session_template->community && session_template->community_len) {
+			session->community = emalloc(session_template->community_len);
+			memcpy(session->community, session_template->community, session_template->community_len);
+		}
+		if (session_template->contextEngineID && session_template->contextEngineIDLen) {
+			session->contextEngineID = emalloc(session_template->contextEngineIDLen);
+			memcpy(session->contextEngineID, session_template->contextEngineID, session_template->contextEngineIDLen);
 		}
 
 		if (snmp_object->max_oids > 0) {
@@ -1417,6 +1441,7 @@ static void php_snmp(INTERNAL_FUNCTION_PARAMETERS, int st, int version)
 	if (session_less_mode) {
 		snmp_session_free(&session);
 	} else {
+		snmp_session_free(&session);
 		netsnmp_ds_set_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_PRINT_NUMERIC_ENUM, glob_snmp_object.enum_print);
 		netsnmp_ds_set_boolean(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_QUICK_PRINT, glob_snmp_object.quick_print);
 		netsnmp_ds_set_int(NETSNMP_DS_LIBRARY_ID, NETSNMP_DS_LIB_OID_OUTPUT_FORMAT, glob_snmp_object.oid_output_format);
