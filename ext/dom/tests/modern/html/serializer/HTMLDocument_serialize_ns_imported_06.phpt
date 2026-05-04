@@ -6,7 +6,7 @@ dom
 <?php
 
 $xml = Dom\XMLDocument::createFromFile(__DIR__.'/sample.xml');
-$xml->documentElement->firstElementChild->appendChild($xml->createElementNS('some:ns2', 'child'));
+$xml->documentElement->firstElementChild->appendChild($xml->createElementNS('urn:some:ns2', 'child'));
 echo $xml->saveXml(), "\n";
 
 echo "--- After clone + import into HTML ---\n";
@@ -22,34 +22,34 @@ echo $html->saveHtml(), "\n";
 ?>
 --EXPECT--
 <?xml version="1.0" encoding="UTF-8"?>
-<container xmlns="some:ns" xmlns:bar="another:ns">
+<container xmlns="urn:some:ns" xmlns:bar="urn:another:ns">
     <x>
         <subcontainer>
-            <test xmlns="x:y"/>
+            <test xmlns="urn:x:y"/>
             <child2/>
         </subcontainer>
         <subcontainer2>
-            <foo xmlns="some:ns"/>
+            <foo xmlns="urn:some:ns"/>
         </subcontainer2>
-    <child xmlns="some:ns2"/></x>
+    <child xmlns="urn:some:ns2"/></x>
 </container>
 --- After clone + import into HTML ---
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<html xmlns="http://www.w3.org/1999/xhtml"><head></head><body><p>foo<x xmlns="some:ns">
+<html xmlns="http://www.w3.org/1999/xhtml"><head></head><body><p>foo<x xmlns="urn:some:ns">
         <subcontainer>
-            <test xmlns="x:y"/>
+            <test xmlns="urn:x:y"/>
             <child2/>
         </subcontainer>
         <subcontainer2>
-            <foo xmlns="some:ns"/>
+            <foo xmlns="urn:some:ns"/>
         </subcontainer2>
-    <child xmlns="some:ns2"/></x></p></body></html>
+    <child xmlns="urn:some:ns2"/></x></p></body></html>
 <html><head></head><body><p>foo<x>
         <subcontainer>
-            <test xmlns="x:y"></test>
+            <test xmlns="urn:x:y"></test>
             <child2></child2>
         </subcontainer>
         <subcontainer2>
-            <foo xmlns="some:ns"></foo>
+            <foo xmlns="urn:some:ns"></foo>
         </subcontainer2>
     <child></child></x></p></body></html>
