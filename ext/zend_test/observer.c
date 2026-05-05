@@ -292,6 +292,13 @@ void declared_class_observer(zend_class_entry *ce, zend_string *name) {
 	}
 }
 
+static void error_observer(int type, zend_string *error_filename, uint32_t error_lineno, zend_string *message)
+{
+	if (ZT_G(observer_show_output)) {
+		php_printf("<!-- error: type=%d, recorded_errors=%u -->\n", type, EG(errors).size);
+	}
+}
+
 static void (*zend_test_prev_execute_internal)(zend_execute_data *execute_data, zval *return_value);
 static void zend_test_execute_internal(zend_execute_data *execute_data, zval *return_value) {
 	zend_function *fbc = execute_data->func;
@@ -387,6 +394,7 @@ PHP_INI_BEGIN()
 	STD_PHP_INI_BOOLEAN("zend_test.observer.observe_includes", "0", PHP_INI_SYSTEM, OnUpdateBool, observer_observe_includes, zend_zend_test_globals, zend_test_globals)
 	STD_PHP_INI_BOOLEAN("zend_test.observer.observe_functions", "0", PHP_INI_SYSTEM, OnUpdateBool, observer_observe_functions, zend_zend_test_globals, zend_test_globals)
 	STD_PHP_INI_BOOLEAN("zend_test.observer.observe_declaring", "0", PHP_INI_SYSTEM, OnUpdateBool, observer_observe_declaring, zend_zend_test_globals, zend_test_globals)
+	STD_PHP_INI_BOOLEAN("zend_test.observer.observe_errors", "0", PHP_INI_SYSTEM, OnUpdateBool, observer_observe_errors, zend_zend_test_globals, zend_test_globals)
 	STD_PHP_INI_ENTRY("zend_test.observer.observe_function_names", "", PHP_INI_ALL, zend_test_observer_OnUpdateCommaList, observer_observe_function_names, zend_zend_test_globals, zend_test_globals)
 	STD_PHP_INI_BOOLEAN("zend_test.observer.show_return_type", "0", PHP_INI_SYSTEM, OnUpdateBool, observer_show_return_type, zend_zend_test_globals, zend_test_globals)
 	STD_PHP_INI_BOOLEAN("zend_test.observer.show_return_value", "0", PHP_INI_SYSTEM, OnUpdateBool, observer_show_return_value, zend_zend_test_globals, zend_test_globals)
@@ -425,6 +433,9 @@ void zend_test_observer_init(INIT_FUNC_ARGS)
 
 		zend_observer_function_declared_register(declared_function_observer);
 		zend_observer_class_linked_register(declared_class_observer);
+		if (ZT_G(observer_observe_errors)) {
+			zend_observer_error_register(error_observer);
+		}
 	}
 
 	if (ZT_G(observer_execute_internal)) {

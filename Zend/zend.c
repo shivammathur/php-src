@@ -1776,12 +1776,30 @@ ZEND_API void zend_begin_record_errors(void)
 	EG(errors).size = 0;
 }
 
-ZEND_API void zend_emit_recorded_errors_ex(uint32_t num_errors, zend_error_info **errors)
+static void zend_emit_recorded_errors_impl(uint32_t num_errors, zend_error_info **errors)
 {
 	for (uint32_t i = 0; i < num_errors; i++) {
 		zend_error_info *error = errors[i];
 		zend_error_zstr_at(error->type, error->filename, error->lineno, error->message);
 	}
+}
+
+ZEND_API void zend_emit_recorded_errors_ex(uint32_t num_errors, zend_error_info **errors)
+{
+	if (!num_errors) {
+		return;
+	}
+
+	zend_err_buf errors_buf = EG(errors);
+
+	memset(&EG(errors), 0, sizeof(EG(errors)));
+	zend_try {
+		zend_emit_recorded_errors_impl(num_errors, errors);
+	} zend_catch {
+		EG(errors) = errors_buf;
+		zend_bailout();
+	} zend_end_try();
+	EG(errors) = errors_buf;
 }
 
 ZEND_API void zend_emit_recorded_errors(void)
