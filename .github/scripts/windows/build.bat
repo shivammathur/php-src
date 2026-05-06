@@ -43,7 +43,9 @@ if not exist "%SDK_RUNNER%" (
 
 for /f "delims=" %%T in ('call .github\scripts\windows\find-vs-toolset.bat %PHP_BUILD_CRT%') do set "VS_TOOLSET=%%T"
 echo Got VS Toolset %VS_TOOLSET%
-cmd /c %SDK_RUNNER% -s %VS_TOOLSET% -t .github\scripts\windows\build_task.bat
+set BUILD_TASK=.github\scripts\windows\build_task.bat
+if "%PGO%" equ "1" set BUILD_TASK=.github\scripts\windows\build_task_pgo.bat
+cmd /c %SDK_RUNNER% -s %VS_TOOLSET% -t %BUILD_TASK%
 if %errorlevel% neq 0 exit /b 3
 
 exit /b 0
