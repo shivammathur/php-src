@@ -163,6 +163,490 @@ function copy_text_file($source, $dest)
     fclose($fp);
 }
 
+function make_uuid()
+{
+    $data = random_bytes(16);
+    $data[6] = chr((ord($data[6]) & 0x0f) | 0x40);
+    $data[8] = chr((ord($data[8]) & 0x3f) | 0x80);
+
+    return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+}
+
+function hash_source_path($path)
+{
+    $source_path = dirname(__DIR__, 2) . '/' . str_replace('\\', '/', $path);
+    if (is_file($source_path)) {
+        $hash = @hash_file('sha256', $source_path);
+        if ($hash === false) {
+            echo "ERROR: couldn't hash source path '$path'\n";
+            exit(1);
+        }
+        return $hash;
+    }
+    if (!is_dir($source_path)) {
+        echo "ERROR: couldn't find source path '$path'\n";
+        exit(1);
+    }
+
+    $files = array();
+    $base = rtrim(str_replace('\\', '/', $source_path), '/') . '/';
+    $it = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($source_path, FilesystemIterator::SKIP_DOTS)
+    );
+    foreach ($it as $file) {
+        if ($file->isFile()) {
+            $files[str_replace('\\', '/', $file->getPathname())] = $file->getPathname();
+        }
+    }
+    ksort($files, SORT_STRING);
+
+    $context = hash_init('sha256');
+    foreach ($files as $normalized => $file) {
+        $relative = strpos($normalized, $base) === 0 ? substr($normalized, strlen($base)) : basename($normalized);
+        $hash = @hash_file('sha256', $file);
+        if ($hash === false) {
+            echo "ERROR: couldn't hash source path '$path'\n";
+            exit(1);
+        }
+        hash_update($context, $relative . "\n" . $hash . "\n");
+    }
+
+    return hash_final($context);
+}
+
+function create_cyclonedx_sbom($php_version, $source_components, $dependency_sbom_files, $dest_file)
+{
+    $php_ref = 'pkg:generic/php@' . $php_version;
+    $php_cpe = 'cpe:2.3:a:php:php:' . $php_version . ':*:*:*:*:*:*:*';
+    $php_source_artifact = 'php-' . $php_version . ' source tree';
+    $cyclonedx = json_decode(strtr(file_get_contents(__DIR__ . '/sbom-templates/cyclonedx.json'), array(
+        '{{UUID}}' => make_uuid(),
+        '{{TIMESTAMP}}' => gmdate('Y-m-d\TH:i:s\Z'),
+        '{{PHP_VERSION}}' => $php_version,
+        '{{PHP_REF}}' => $php_ref,
+        '{{PHP_CPE}}' => $php_cpe,
+    )), true);
+    $components = array();
+    $dependency_refs = array();
+    $dependencies = array();
+    $vulnerabilities = array();
+
+    foreach ($source_components as $component) {
+        $ref = $component['purl'] ?? ('pkg:generic/php-src/' . preg_replace('/[^A-Za-z0-9._-]/', '-', strtolower($component['name'])));
+        $cyclonedx_component = array(
+            'type' => 'library',
+            'bom-ref' => $ref,
+            'name' => $component['name'],
+        );
+        foreach (array('version', 'purl') as $field) {
+            if (!empty($component[$field])) {
+                $cyclonedx_component[$field] = $component[$field];
+            }
+        }
+        if (!empty($component['license']) && $component['license'] !== 'NOASSERTION') {
+            $cyclonedx_component['licenses'] = preg_match('/^[A-Za-z0-9.+-]+$/', $component['license'])
+                    && strpos($component['license'], 'LicenseRef-') !== 0
+                ? array(array('license' => array('id' => $component['license'])))
+                : array(array('expression' => $component['license']));
+        }
+        if (!empty($component['path'])) {
+            $cyclonedx_component['properties'] = array(
+                array(
+                    'name' => 'php:component-origin',
+                    'value' => 'bundled',
+                ),
+                array(
+                    'name' => 'php:source-artifact',
+                    'value' => $php_source_artifact,
+                ),
+                array(
+                    'name' => 'php:source-path',
+                    'value' => $component['path'],
+                ),
+                array(
+                    'name' => 'php:source-hash-algorithm',
+                    'value' => 'SHA-256',
+                ),
+            );
+        }
+        if (!empty($component['sourceHash'])) {
+            $cyclonedx_component['hashes'] = array(array(
+                'alg' => 'SHA-256',
+                'content' => $component['sourceHash'],
+            ));
+        }
+
+        $components[$ref] = $cyclonedx_component;
+        $dependency_refs[$ref] = $ref;
+    }
+
+    foreach ($dependency_sbom_files as $file) {
+        if (!preg_match('/\.cdx\.json$/', $file)) {
+            continue;
+        }
+
+        $sbom_text = @file_get_contents($file);
+        $sbom = $sbom_text !== false ? json_decode($sbom_text, true) : null;
+        if (!is_array($sbom)) {
+            echo "ERROR: couldn't parse JSON file '$file'\n";
+            exit(1);
+        }
+
+        $sbom_components = $sbom['components'] ?? array();
+        if (!empty($sbom['metadata']['component']) && is_array($sbom['metadata']['component'])) {
+            array_unshift($sbom_components, $sbom['metadata']['component']);
+            if (!empty($sbom['metadata']['component']['bom-ref'])) {
+                $dependency_refs[$sbom['metadata']['component']['bom-ref']] = $sbom['metadata']['component']['bom-ref'];
+            }
+        }
+        foreach ($sbom_components as $component) {
+            if (!is_array($component) || empty($component['name'])) {
+                continue;
+            }
+
+            $key = !empty($component['bom-ref'])
+                ? $component['bom-ref']
+                : $component['name'] . '@' . ($component['version'] ?? '');
+
+            if (!isset($components[$key])) {
+                $components[$key] = $component;
+            }
+        }
+        foreach ($sbom['dependencies'] ?? array() as $dependency) {
+            if (empty($dependency['ref'])) {
+                continue;
+            }
+
+            if (!isset($dependencies[$dependency['ref']])) {
+                $dependency['dependsOn'] = array_values(array_unique($dependency['dependsOn'] ?? array()));
+                $dependencies[$dependency['ref']] = $dependency;
+                continue;
+            }
+
+            $dependencies[$dependency['ref']]['dependsOn'] = array_values(array_unique(array_merge(
+                $dependencies[$dependency['ref']]['dependsOn'] ?? array(),
+                $dependency['dependsOn'] ?? array()
+            )));
+        }
+        $vulnerabilities = array_merge($vulnerabilities, $sbom['vulnerabilities'] ?? array());
+    }
+
+    $dependencies[$php_ref] = array(
+        'ref' => $php_ref,
+        'dependsOn' => array_values($dependency_refs),
+    );
+
+    $cyclonedx['components'] = array_values($components);
+    $cyclonedx['dependencies'] = array_values($dependencies);
+    if (!empty($vulnerabilities)) {
+        $cyclonedx['vulnerabilities'] = $vulnerabilities;
+    }
+
+    if (@file_put_contents($dest_file, json_encode($cyclonedx, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n") === false) {
+        echo "ERROR: couldn't write '$dest_file'\n";
+        exit(1);
+    }
+}
+
+function create_spdx_sbom($php_version, $source_components, $dependency_sbom_files, $dest_file)
+{
+    $php_spdx_id = 'SPDXRef-PHP';
+    $php_ref = 'pkg:generic/php@' . $php_version;
+    $php_cpe = 'cpe:2.3:a:php:php:' . $php_version . ':*:*:*:*:*:*:*';
+    $php_source_artifact = 'php-' . $php_version . ' source tree';
+    $spdx = json_decode(strtr(file_get_contents(__DIR__ . '/sbom-templates/spdx.json'), array(
+        '{{UUID}}' => make_uuid(),
+        '{{TIMESTAMP}}' => gmdate('Y-m-d\TH:i:s\Z'),
+        '{{PHP_VERSION}}' => $php_version,
+        '{{PHP_REF}}' => $php_ref,
+        '{{PHP_CPE}}' => $php_cpe,
+    )), true);
+    $dependency_relationship_template = array(
+        'spdxElementId' => $php_spdx_id,
+        'relationshipType' => 'CONTAINS',
+        'relatedSpdxElement' => '',
+    );
+    $packages = array($spdx['packages'][0]);
+    $relationships = array($spdx['relationships'][0]);
+    $extracted_licenses = array();
+    $package_ids_by_key = array();
+    $relationship_ids = array();
+    $package_count = 0;
+
+    foreach ($source_components as $component) {
+        $package_count++;
+        $dependency_spdx_id = 'SPDXRef-Source-' . preg_replace('/[^A-Za-z0-9.-]/', '-', $component['name'] . '-' . ($component['version'] ?? 'NOASSERTION') . '-' . $package_count);
+        $package = array(
+            'name' => $component['name'],
+            'SPDXID' => $dependency_spdx_id,
+            'downloadLocation' => 'NOASSERTION',
+            'filesAnalyzed' => false,
+            'licenseConcluded' => $component['license'] ?? 'NOASSERTION',
+            'licenseDeclared' => $component['license'] ?? 'NOASSERTION',
+            'copyrightText' => 'NOASSERTION',
+            'sourceInfo' => 'Bundled in ' . $php_source_artifact . ' at ' . $component['path']
+                . (!empty($component['sourceHash']) ? '; source SHA-256: ' . $component['sourceHash'] : ''),
+        );
+        if (!empty($component['sourceHash'])) {
+            $package['checksums'] = array(array(
+                'algorithm' => 'SHA256',
+                'checksumValue' => $component['sourceHash'],
+            ));
+        }
+        if (!empty($component['version'])) {
+            $package['versionInfo'] = $component['version'];
+        }
+        if (!empty($component['purl'])) {
+            $package['externalRefs'] = array(
+                array(
+                    'referenceCategory' => 'PACKAGE-MANAGER',
+                    'referenceType' => 'purl',
+                    'referenceLocator' => $component['purl'],
+                ),
+            );
+        }
+        if (!empty($component['license']) && strpos($component['license'], 'LicenseRef-') === 0 && !empty($component['licenseText'])) {
+            $extracted_licenses[$component['license']] = array(
+                'licenseId' => $component['license'],
+                'extractedText' => $component['licenseText'],
+            );
+            if (!empty($component['licenseName'])) {
+                $extracted_licenses[$component['license']]['name'] = $component['licenseName'];
+            }
+        }
+        $packages[] = $package;
+
+        $relationships[] = array_merge($dependency_relationship_template, array(
+            'relatedSpdxElement' => $dependency_spdx_id,
+        ));
+        $relationship_ids[$dependency_spdx_id] = true;
+    }
+
+    foreach ($dependency_sbom_files as $file) {
+        if (!preg_match('/\.spdx\.json$/', $file)) {
+            continue;
+        }
+
+        $sbom_text = @file_get_contents($file);
+        $sbom = $sbom_text !== false ? json_decode($sbom_text, true) : null;
+        if (!is_array($sbom)) {
+            echo "ERROR: couldn't parse JSON file '$file'\n";
+            exit(1);
+        }
+
+        foreach ($sbom['hasExtractedLicensingInfos'] ?? array() as $license) {
+            if (!empty($license['licenseId']) && !isset($extracted_licenses[$license['licenseId']])) {
+                $extracted_licenses[$license['licenseId']] = $license;
+            }
+        }
+
+        foreach ($sbom['packages'] ?? array() as $package) {
+            if (empty($package['name'])) {
+                continue;
+            }
+
+            $package_key_data = $package;
+            unset($package_key_data['SPDXID']);
+            $package_key = json_encode($package_key_data, JSON_UNESCAPED_SLASHES);
+
+            if (isset($package_ids_by_key[$package_key])) {
+                $dependency_spdx_id = $package_ids_by_key[$package_key];
+            } else {
+                $package_count++;
+                $dependency_spdx_id = 'SPDXRef-Dependency-' . preg_replace('/[^A-Za-z0-9.-]/', '-', $package['name'] . '-' . ($package['versionInfo'] ?? 'NOASSERTION') . '-' . $package_count);
+                $package['SPDXID'] = $dependency_spdx_id;
+                $packages[] = $package;
+                $package_ids_by_key[$package_key] = $dependency_spdx_id;
+            }
+
+            if (!isset($relationship_ids[$dependency_spdx_id])) {
+                $relationships[] = array_merge($dependency_relationship_template, array(
+                    'relatedSpdxElement' => $dependency_spdx_id,
+                ));
+                $relationship_ids[$dependency_spdx_id] = true;
+            }
+        }
+    }
+
+    $spdx['packages'] = $packages;
+    $spdx['relationships'] = $relationships;
+    if (!empty($extracted_licenses)) {
+        $spdx['hasExtractedLicensingInfos'] = array_values($extracted_licenses);
+    }
+
+    if (@file_put_contents($dest_file, json_encode($spdx, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n") === false) {
+        echo "ERROR: couldn't write '$dest_file'\n";
+        exit(1);
+    }
+}
+
+function create_openvex($php_version, $dependency_sbom_files, $dest_file)
+{
+    $openvex = json_decode(strtr(file_get_contents(__DIR__ . '/sbom-templates/openvex.json'), array(
+        '{{UUID}}' => make_uuid(),
+        '{{TIMESTAMP}}' => gmdate('Y-m-d\TH:i:s\Z'),
+        '{{PHP_VERSION}}' => $php_version,
+    )), true);
+    $statements = array();
+    foreach ($dependency_sbom_files as $file) {
+        if (!preg_match('/\.openvex\.json$/', $file)) {
+            continue;
+        }
+
+        $vex_text = @file_get_contents($file);
+        $vex = $vex_text !== false ? json_decode($vex_text, true) : null;
+        if (!is_array($vex)) {
+            echo "ERROR: couldn't parse JSON file '$file'\n";
+            exit(1);
+        }
+
+        $statements = array_merge($statements, $vex['statements'] ?? array());
+    }
+
+    if (empty($statements)) {
+        return;
+    }
+
+    $openvex['statements'] = $statements;
+    if (@file_put_contents($dest_file, json_encode($openvex, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n") === false) {
+        echo "ERROR: couldn't write '$dest_file'\n";
+        exit(1);
+    }
+}
+
+function add_dependency_compliance_files($php_version, $php_build_dir, $dist_dir)
+{
+    $licenses_dir = $php_build_dir . '/share/licenses';
+    $source_sbom_file = __DIR__ . '/sbom-bundled-components.json';
+    $sbom_dir = $php_build_dir . '/share/sbom';
+    $dist_sbom_dir = $dist_dir . '/extras/sbom';
+    $license_templates = array(
+        'section' => "\n\nWindows binary dependency licenses\n===================================\n{licenses}",
+        'library' => "\n\n{library}\n{underline}\n",
+        'file' => "\n{file}\n{underline}\n\n{text}\n",
+    );
+
+    if (is_dir($licenses_dir)) {
+        $license_dirs = glob($licenses_dir . '/*', GLOB_ONLYDIR);
+        if (!empty($license_dirs)) {
+            sort($license_dirs, SORT_STRING);
+            $license_text = '';
+
+            foreach ($license_dirs as $license_dir) {
+                $license_files = array();
+                $it = new RecursiveIteratorIterator(
+                    new RecursiveDirectoryIterator($license_dir, FilesystemIterator::SKIP_DOTS)
+                );
+                foreach ($it as $file) {
+                    if ($file->isFile()) {
+                        $license_files[] = $file->getPathname();
+                    }
+                }
+                if (empty($license_files)) {
+                    continue;
+                }
+                sort($license_files, SORT_STRING);
+
+                $library = basename($license_dir);
+                $license_text .= strtr($license_templates['library'], array(
+                    '{library}' => $library,
+                    '{underline}' => str_repeat("-", strlen($library)),
+                ));
+                foreach ($license_files as $license_file) {
+                    $base = rtrim(str_replace('\\', '/', $license_dir), '/') . '/';
+                    $path = str_replace('\\', '/', $license_file);
+                    $relative = strpos($path, $base) === 0 ? substr($path, strlen($base)) : basename($path);
+                    $relative = $library . '/' . $relative;
+                    $contents = @file_get_contents($license_file);
+                    if ($contents === false) {
+                        echo "ERROR: couldn't read dependency license '$license_file'\n";
+                        exit(1);
+                    }
+
+                    $license_text .= strtr($license_templates['file'], array(
+                        '{file}' => $relative,
+                        '{underline}' => str_repeat("~", strlen($relative)),
+                        '{text}' => rtrim($contents),
+                    ));
+                }
+            }
+
+            if ($license_text !== '') {
+                $append = strtr($license_templates['section'], array(
+                    '{licenses}' => $license_text,
+                ));
+                if (@file_put_contents($dist_dir . '/readme-redist-bins.txt', $append, FILE_APPEND) === false) {
+                    echo "ERROR: couldn't write dependency licenses to readme-redist-bins.txt\n";
+                    exit(1);
+                }
+
+                $text = @file_get_contents($dist_dir . '/readme-redist-bins.txt');
+                if ($text === false) {
+                    echo "ERROR: couldn't read readme-redist-bins.txt\n";
+                    exit(1);
+                }
+                $text = preg_replace("/(\r\n?)|\n/", "\r\n", $text);
+                if (@file_put_contents($dist_dir . '/readme-redist-bins.txt', $text) === false) {
+                    echo "ERROR: couldn't normalize readme-redist-bins.txt\n";
+                    exit(1);
+                }
+            }
+        }
+    }
+
+    $source_components = array();
+    if (is_file($source_sbom_file)) {
+        $source_components_text = @file_get_contents($source_sbom_file);
+        $source_components = $source_components_text !== false ? json_decode($source_components_text, true) : null;
+        if (!is_array($source_components)) {
+            echo "ERROR: couldn't parse source SBOM components '$source_sbom_file'\n";
+            exit(1);
+        }
+        foreach ($source_components as $source_component) {
+            if (!is_array($source_component) || empty($source_component['name']) || empty($source_component['path'])) {
+                echo "ERROR: couldn't parse source SBOM components '$source_sbom_file'\n";
+                exit(1);
+            }
+        }
+        foreach ($source_components as $i => $source_component) {
+            $source_components[$i]['sourceHash'] = hash_source_path($source_component['path']);
+        }
+    }
+
+    $sbom_files = is_dir($sbom_dir) ? glob($sbom_dir . '/*.json') : array();
+    if (empty($sbom_files) && empty($source_components)) {
+        return;
+    }
+    sort($sbom_files, SORT_STRING);
+
+    if (!is_dir($dist_sbom_dir) && !@mkdir($dist_sbom_dir, 0777, true)) {
+        echo "ERROR: couldn't create '$dist_sbom_dir'\n";
+        exit(1);
+    }
+
+    $dependency_sbom_files = array();
+    if (!empty($sbom_files)) {
+        $dependency_sbom_dir = $dist_sbom_dir . '/dependencies';
+        if (!is_dir($dependency_sbom_dir) && !@mkdir($dependency_sbom_dir, 0777, true)) {
+            echo "ERROR: couldn't create '$dependency_sbom_dir'\n";
+            exit(1);
+        }
+
+        foreach ($sbom_files as $file) {
+            $dest = $dependency_sbom_dir . '/' . basename($file);
+            if (!@copy($file, $dest)) {
+                echo "ERROR: couldn't copy dependency SBOM '$file'\n";
+                exit(1);
+            }
+            $dependency_sbom_files[] = $dest;
+        }
+    }
+
+    create_cyclonedx_sbom($php_version, $source_components, $dependency_sbom_files, $dist_sbom_dir . '/php.cdx.json');
+    create_spdx_sbom($php_version, $source_components, $dependency_sbom_files, $dist_sbom_dir . '/php.spdx.json');
+    create_openvex($php_version, $dependency_sbom_files, $dist_sbom_dir . '/php.openvex.json');
+}
+
 /* very light-weight function to extract a single named file from
  * a gzipped tarball.  This makes assumptions about the files
  * based on the PEAR info set in $packages. */
@@ -222,7 +706,6 @@ function extract_file_from_tarball($pkg, $filename, $dest_dir) /* {{{ */
 
 } /* }}} */
 
-
 /* the core dll */
 copy("$build_dir/php.exe", "$dist_dir/php.exe");
 /* copy dll and its dependencies */
@@ -260,6 +743,8 @@ $text_files = array(
 foreach ($text_files as $src => $dest) {
     copy_text_file($src, $dist_dir . '/' . $dest);
 }
+
+add_dependency_compliance_files($php_version, $php_build_dir, $dist_dir);
 
 /* general other files */
 $general_files = array(
