@@ -17,6 +17,13 @@
 #ifndef _PHP_EMBED_H_
 #define _PHP_EMBED_H_
 
+#if (defined(PHP_WIN32) || defined(_WIN32)) && !defined(PHP_EMBED_STATIC)
+# include <main/config.w32.h>
+# ifdef PHP_EMBED_SAPI_STATIC
+#  define PHP_EMBED_STATIC 1
+# endif
+#endif
+
 #include <main/php.h>
 #include <main/SAPI.h>
 #include <main/php_main.h>

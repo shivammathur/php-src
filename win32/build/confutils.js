@@ -1202,8 +1202,8 @@ function SAPI(sapiname, file_list, makefiletarget, cflags, obj_dir, duplicate_so
 	// dependency on php<N>.dll. Substitute the PHP object groups for the
 	// import lib in both the dependency line and the link command.
 	var is_static_embed = (sapiname == "embed" && PHP_EMBED == "static");
-	var dep_phplib_deps  = is_static_embed ? "$(PHP_GLOBAL_OBJS) $(STATIC_EXT_OBJS) $(ASM_OBJS)" : "$(BUILD_DIR)\\$(PHPLIB)";
-	var link_phplib_args = is_static_embed ? "$(PHP_GLOBAL_OBJS_RESP) $(STATIC_EXT_OBJS_RESP) $(ASM_OBJS) $(STATIC_EXT_LIBS)" : "$(BUILD_DIR)\\$(PHPLIB)";
+	var dep_phplib_deps  = is_static_embed ? "generated_files $(PHP_GLOBAL_OBJS) $(STATIC_EXT_OBJS) $(ASM_OBJS)" : "$(BUILD_DIR)\\$(PHPLIB)";
+	var link_phplib_args = is_static_embed ? "$(PHP_GLOBAL_OBJS_RESP) $(STATIC_EXT_OBJS_RESP) $(STATIC_EXT_ARFLAGS) $(ASM_OBJS) $(STATIC_EXT_LIBS) $(LIBS)" : "$(BUILD_DIR)\\$(PHPLIB)";
 
 	if (typeof(obj_dir) == "undefined") {
 		sapiname_for_printing = configure_module_dirname;
@@ -1510,6 +1510,7 @@ function EXTENSION(extname, file_list, shared, cflags, dllname, obj_dir)
 		ADD_FLAG("STATIC_EXT_OBJS", "$(" + EXT + "_GLOBAL_OBJS)");
 		ADD_FLAG("STATIC_EXT_OBJS_RESP", "$(" + EXT + "_GLOBAL_OBJS_RESP)");
 		ADD_FLAG("STATIC_EXT_LIBS", "$(LIBS_" + EXT + ")");
+		ADD_FLAG("STATIC_EXT_ARFLAGS", "$(ARFLAGS_" + EXT + ")");
 		ADD_FLAG("STATIC_EXT_LDFLAGS", "$(LDFLAGS_" + EXT + ")");
 		ADD_FLAG("STATIC_EXT_CFLAGS", "$(CFLAGS_" + EXT + ")");
 		if (is_pgo_desired(extname) && (PHP_PGI == "yes" || PHP_PGO != "no")) {

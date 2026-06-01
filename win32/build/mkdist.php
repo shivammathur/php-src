@@ -240,7 +240,17 @@ if ($is_debug) {
     copy("$build_dir/$phppdb", "$dist_dir/dev/$phppdb");
 }
 /* copy the sapi */
-copy_file_list($build_dir, "$dist_dir", $sapi_targets);
+$sapi_binaries = [];
+$sapi_libraries = [];
+foreach ($sapi_targets as $target) {
+    if (preg_match('/\.lib$/i', $target)) {
+        $sapi_libraries[] = $target;
+    } else {
+        $sapi_binaries[] = $target;
+    }
+}
+copy_file_list($build_dir, "$dist_dir", $sapi_binaries);
+copy_file_list($build_dir, "$dist_dir/dev", $sapi_libraries);
 
 /* copy the extensions */
 copy_file_list($build_dir, "$dist_dir/ext", $ext_targets);

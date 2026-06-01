@@ -55,7 +55,9 @@
 extern "C" {
 #endif
 
-#ifdef PHP_EXPORTS
+#ifdef PHP_EMBED_STATIC
+# define PW32IO
+#elif defined(PHP_EXPORTS)
 # define PW32IO __declspec(dllexport)
 #else
 # define PW32IO __declspec(dllimport)

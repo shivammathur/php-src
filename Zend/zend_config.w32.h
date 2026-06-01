@@ -42,7 +42,9 @@
 #define strcasecmp(s1, s2) _stricmp(s1, s2)
 #define strncasecmp(s1, s2, n) _strnicmp(s1, s2, n)
 
-#ifdef LIBZEND_EXPORTS
+#ifdef PHP_EMBED_STATIC
+#	define ZEND_API
+#elif defined(LIBZEND_EXPORTS)
 #	define ZEND_API __declspec(dllexport)
 #else
 #	define ZEND_API __declspec(dllimport)

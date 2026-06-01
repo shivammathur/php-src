@@ -18,7 +18,9 @@
 #define PHP_WIN32_CONSOLE_H
 
 #ifndef PHP_WINUTIL_API
-#ifdef PHP_EXPORTS
+#ifdef PHP_EMBED_STATIC
+# define PHP_WINUTIL_API
+#elif defined(PHP_EXPORTS)
 # define PHP_WINUTIL_API __declspec(dllexport)
 #else
 # define PHP_WINUTIL_API __declspec(dllimport)

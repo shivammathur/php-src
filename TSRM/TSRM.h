@@ -24,7 +24,9 @@
 #include <stdbool.h>
 
 #ifdef TSRM_WIN32
-#	ifdef TSRM_EXPORTS
+#	ifdef PHP_EMBED_STATIC
+#		define TSRM_API
+#	elif defined(TSRM_EXPORTS)
 #		define TSRM_API __declspec(dllexport)
 #	else
 #		define TSRM_API __declspec(dllimport)

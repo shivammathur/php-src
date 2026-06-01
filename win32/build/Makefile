@@ -235,6 +235,7 @@ install: really-install install-sdk
 build-lib: build-ext-libs
 	@if not exist $(BUILD_DIR_DEV)\lib mkdir $(BUILD_DIR_DEV)\lib >nul
 	@copy $(BUILD_DIR)\$(PHPLIB) $(BUILD_DIR_DEV)\lib /y >nul
+	@for %T in ($(SAPI_TARGETS)) do @if /I "%~xT" == ".lib" copy $(BUILD_DIR)\%T $(BUILD_DIR_DEV)\lib /y >nul
 
 build-devel: build-headers build-lib
 	@if not exist $(BUILD_DIR_DEV)\script mkdir $(BUILD_DIR_DEV)\script >nul

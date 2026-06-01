@@ -21,7 +21,9 @@
 extern "C" {
 #endif
 
-#ifdef PHP_EXPORTS
+#ifdef PHP_EMBED_STATIC
+# define PW32CP
+#elif defined(PHP_EXPORTS)
 # define PW32CP __declspec(dllexport)
 #else
 # define PW32CP __declspec(dllimport)

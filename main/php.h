@@ -57,7 +57,9 @@
 
 #ifdef PHP_WIN32
 #	include "tsrm_win32.h"
-#	ifdef PHP_EXPORTS
+#	ifdef PHP_EMBED_STATIC
+#		define PHPAPI
+#	elif defined(PHP_EXPORTS)
 #		define PHPAPI __declspec(dllexport)
 #	else
 #		define PHPAPI __declspec(dllimport)

@@ -17,7 +17,9 @@
 #ifndef PHP_WIN32_IPC_H
 #define PHP_WIN32_IPC_H 1
 
-#ifdef PHP_EXPORTS
+#ifdef PHP_EMBED_STATIC
+# define PHP_WIN32_IPC_API
+#elif defined(PHP_EXPORTS)
 # define PHP_WIN32_IPC_API __declspec(dllexport)
 #else
 # define PHP_WIN32_IPC_API __declspec(dllimport)
