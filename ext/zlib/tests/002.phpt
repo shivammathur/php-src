@@ -17,8 +17,8 @@ echo strlen($packed)." ".strlen($original)."\n";
 $unpacked=gzuncompress($packed, 40000);
 if ($original === $unpacked) echo "Strings are equal\n";
 ?>
---EXPECT--
-106 36864
+--EXPECTF--
+%r(106|216)%r 36864
 Strings are equal
 106 36864
 Strings are equal

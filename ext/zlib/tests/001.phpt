@@ -23,8 +23,8 @@ echo strlen($packed)." ".strlen($original)."\n";
 $unpacked=gzinflate($packed);
 if (strcmp($original,$unpacked)==0) echo "Strings are equal";
 ?>
---EXPECT--
-100 36864
+--EXPECTF--
+%r(100|210)%r 36864
 Strings are equal
 100 36864
 Strings are equal

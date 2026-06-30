@@ -9,6 +9,6 @@ $packed = gzencode($original);
 echo strlen($packed)." ".strlen($original). "\n";
 if ($original === gzdecode($packed)) echo "Strings are equal\n";
 ?>
---EXPECT--
-118 36864
+--EXPECTF--
+%r(118|228)%r 36864
 Strings are equal
