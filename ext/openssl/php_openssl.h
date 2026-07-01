@@ -25,6 +25,7 @@ extern zend_module_entry openssl_module_entry;
 #include "php_version.h"
 #define PHP_OPENSSL_VERSION PHP_VERSION
 
+#include <openssl/opensslconf.h>
 #include <openssl/opensslv.h>
 #if defined(LIBRESSL_VERSION_NUMBER)
 /* LibreSSL version check */

@@ -93,7 +93,7 @@
 #define HAVE_SEC_LEVEL 1
 #endif
 
-#ifndef OPENSSL_NO_SSL3
+#if OPENSSL_VERSION_NUMBER < 0x40000000L && !defined(OPENSSL_NO_SSL3)
 #define HAVE_SSL3 1
 #define PHP_OPENSSL_MIN_PROTO_VERSION STREAM_CRYPTO_METHOD_SSLv3
 #else
@@ -533,8 +533,12 @@ static bool php_openssl_matches_san_list(X509 *peer, const char *subject_name) /
 static bool php_openssl_matches_common_name(X509 *peer, const char *subject_name) /* {{{ */
 {
 	char buf[1024];
+#if PHP_OPENSSL_API_VERSION < 0x30000
 	X509_NAME *cert_name;
-	bool is_match = 0;
+#else
+	const X509_NAME *cert_name;
+#endif
+	bool is_match = false;
 	int cert_name_len;
 
 	cert_name = X509_get_subject_name(peer);
@@ -545,7 +549,7 @@ static bool php_openssl_matches_common_name(X509 *peer, const char *subject_name
 	} else if ((size_t)cert_name_len != strlen(buf)) {
 		php_error_docref(NULL, E_WARNING, "Peer certificate CN=`%.*s' is malformed", cert_name_len, buf);
 	} else if (php_openssl_matches_wildcard_name(subject_name, buf)) {
-		is_match = 1;
+		is_match = true;
 	} else {
 		php_error_docref(NULL, E_WARNING,
 			"Peer certificate CN=`%.*s' did not match expected CN=`%s'",
