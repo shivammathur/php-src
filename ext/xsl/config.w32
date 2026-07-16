@@ -6,6 +6,9 @@ if (PHP_XSL != "no") {
 	if (PHP_DOM == "yes" && PHP_LIBXML == "yes"
 	&& ADD_EXTENSION_DEP('xsl', 'libxml')
 	&& ADD_EXTENSION_DEP('xsl', 'dom')
+	&& (!PHP_XSL_SHARED ||
+		(CHECK_LIB("libxml2_a_dll.lib;libxml2_a.lib", "xsl") &&
+		CHECK_LIB("libiconv_a.lib;iconv_a.lib;libiconv.lib;iconv.lib", "xsl")))
 	&& CHECK_HEADER_ADD_INCLUDE("libxml/tree.h", "CFLAGS_XSL", PHP_PHP_BUILD + "\\include\\libxml2")
 	) {
 		var ext_xsl_lib_found = false;
@@ -33,8 +36,9 @@ if (PHP_XSL != "no") {
 			}
 			EXTENSION("xsl", "php_xsl.c xsltprocessor.c", PHP_XSL_SHARED);
 			AC_DEFINE("HAVE_XSL", 1, "Define to 1 if the PHP extension 'xsl' is available.");
+			ADD_FLAG("CFLAGS_XSL", "/D LIBXML_STATIC");
 			if (! PHP_XSL_SHARED) {
-				ADD_FLAG("CFLAGS_XSL", "/D DOM_EXPORTS /D LIBXML_STATIC");
+				ADD_FLAG("CFLAGS_XSL", "/D DOM_EXPORTS");
 			} else {
 				if (PHP_DEBUG == "yes") {
 					ADD_FLAG("LDFLAGS_XSL", "/nodefaultlib:msvcrt");
