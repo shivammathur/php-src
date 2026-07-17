@@ -332,6 +332,8 @@ ADD_FLAG("CFLAGS", "/D FD_SETSIZE=" + parseInt(PHP_FD_SETSIZE));
 /* For snapshot builders, where can we find the additional
  * files that make up the snapshot template? */
 ARG_WITH("snapshot-template", "Path to snapshot builder template dir", "no");
+ARG_WITH("sbom", "Generate SBOMs for Windows binary distributions when supported by the PHP SDK", "no");
+DEFINE("PHP_SBOM", PHP_SBOM);
 
 if (PHP_SNAPSHOT_TEMPLATE == "no") {
 	/* default is as a sibling of the php_build dir */
