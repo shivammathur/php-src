@@ -1,0 +1,155 @@
+{
+  "license": "BSD-3-Clause",
+  "components": [
+  {
+    "name": "Berkeley uuencode",
+    "path": "ext/standard/uuencode.c",
+    "license": "BSD-4-Clause-UC",
+    "purl": "pkg:generic/berkeley-uuencode"
+  },
+  {
+    "name": "Boost.Context assembly",
+    "path": "Zend/asm",
+    "license": "BSL-1.0",
+    "purl": "pkg:generic/boost-context-assembly"
+  },
+  {
+    "name": "crypt_blowfish",
+    "version": "1.3",
+    "path": "ext/standard/crypt_blowfish.c",
+    "license": "bcrypt-Solar-Designer",
+    "purl": "pkg:generic/crypt_blowfish@1.3"
+  },
+  {
+    "name": "DynASM",
+    "version": "1.5.0",
+    "path": "ext/opcache/jit/ir/dynasm",
+    "license": "MIT",
+    "purl": "pkg:generic/dynasm@1.5.0"
+  },
+  {
+    "name": "FreeSec libcrypt",
+    "path": "ext/standard/crypt_freesec.c",
+    "license": "BSD-3-Clause",
+    "purl": "pkg:generic/freesec-libcrypt"
+  },
+  {
+    "name": "libarchive tar format_octal",
+    "path": "ext/phar/tar.c",
+    "license": "BSD-2-Clause",
+    "purl": "pkg:generic/libarchive-format-octal"
+  },
+  {
+    "name": "libavifinfo",
+    "version": "2b924defa4c2cd227540efe164067a8cc913eeba",
+    "path": "ext/standard/libavifinfo",
+    "license": "BSD-2-Clause",
+    "purl": "pkg:generic/libavifinfo@2b924defa4c2cd227540efe164067a8cc913eeba"
+  },
+  {
+    "name": "libbcmath",
+    "version": "0.2",
+    "path": "ext/bcmath/libbcmath",
+    "license": "LGPL-2.1-only",
+    "purl": "pkg:generic/libbcmath@0.2"
+  },
+  {
+    "name": "libgd",
+    "version": "2.4.0",
+    "path": "ext/gd/libgd",
+    "license": "GD",
+    "purl": "pkg:generic/libgd@2.4.0"
+  },
+  {
+    "name": "libmagic",
+    "version": "5.46",
+    "path": "ext/fileinfo/libmagic",
+    "license": "BSD-2-Clause",
+    "purl": "pkg:generic/libmagic@5.46"
+  },
+  {
+    "name": "libmbfl",
+    "version": "1.3.2",
+    "path": "ext/mbstring/libmbfl",
+    "license": "LGPL-2.1-only",
+    "purl": "pkg:generic/libmbfl@1.3.2"
+  },
+  {
+    "name": "libzip zip_dirent",
+    "path": "ext/phar/zip.c",
+    "license": "BSD-3-Clause",
+    "purl": "pkg:generic/libzip-zip-dirent"
+  },
+  {
+    "name": "MTRand",
+    "version": "1.0",
+    "path": "ext/random/engine_mt19937.c",
+    "license": "BSD-3-Clause",
+    "purl": "pkg:generic/mtrand@1.0"
+  },
+  {
+    "name": "OpenLDAP ucgendat",
+    "path": "ext/mbstring/ucgendat/ucgendat.php",
+    "license": "OLDAP-2.8 AND MIT",
+    "purl": "pkg:generic/openldap-ucgendat"
+  },
+  {
+    "name": "pcre2lib",
+    "version": "10.44",
+    "path": "ext/pcre/pcre2lib",
+    "license": "BSD-3-Clause WITH PCRE2-exception",
+    "purl": "pkg:generic/pcre2@10.44"
+  },
+  {
+    "name": "snprintf",
+    "path": "main/snprintf.c",
+    "license": "ISC AND Apache-1.0",
+    "purl": "pkg:generic/snprintf"
+  },
+  {
+    "name": "strlcat",
+    "path": "main/strlcat.c",
+    "license": "BSD-3-Clause",
+    "purl": "pkg:generic/strlcat"
+  },
+  {
+    "name": "strlcpy",
+    "path": "main/strlcpy.c",
+    "license": "BSD-3-Clause",
+    "purl": "pkg:generic/strlcpy"
+  },
+  {
+    "name": "strnatcmp",
+    "path": "ext/standard/strnatcmp.c",
+    "license": "Zlib",
+    "purl": "pkg:generic/strnatcmp"
+  },
+  {
+    "name": "Tcl scanf implementation",
+    "version": "8.3.0",
+    "path": "ext/standard/scanf.c",
+    "license": "TCL",
+    "purl": "pkg:generic/tcl-scanf@8.3.0"
+  },
+  {
+    "name": "timelib",
+    "version": "2022.17",
+    "path": "ext/date/lib",
+    "license": "MIT",
+    "purl": "pkg:generic/timelib@2022.17"
+  },
+  {
+    "name": "XKCP SHA-3",
+    "path": "ext/hash/sha3",
+    "license": "CC0-1.0 AND Brian-Gladman-3-Clause",
+    "purl": "pkg:generic/xkcp-sha3"
+  },
+  {
+    "name": "xxHash",
+    "version": "0.8.2",
+    "path": "ext/hash/xxhash",
+    "license": "BSD-2-Clause",
+    "purl": "pkg:generic/xxhash@0.8.2"
+  }
+  ]
+}
