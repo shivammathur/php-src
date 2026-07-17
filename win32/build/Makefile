@@ -214,6 +214,9 @@ build-dist: $(BUILD_DIR)\deplister.exe
 	-del /f /q $(BUILD_DIR)\$(DIST_ZIP_DEBUG_PACK)
 	-del /f /q $(BUILD_DIR)\$(DIST_ZIP_PECL)
 	$(PHP_SDK_PHP_CMD) -d date.timezone=UTC -n -dphar.readonly=0 win32/build/mkdist.php "$(PHP_VERSION_STRING)" "$(BUILD_DIR)" "$(PHP_BUILD)" "$(PHPDLL)" "$(SAPI_TARGETS)" "$(EXT_TARGETS) $(PHP_EXTRA_DIST_FILES)" "$(PECL_TARGETS) $(PECL_EXTRA_DIST_FILES)" "$(SNAPSHOT_TEMPLATE)"
+!if "$(PHP_SBOM)" == "yes"
+	@if exist "$(PHP_SDK_BIN_PATH)\phpsdk_sbom.bat" (call "$(PHP_SDK_BIN_PATH)\phpsdk_sbom.bat" "$(PHP_VERSION_STRING)" "$(PHP_SRC_DIR)" "$(PHP_BUILD)" "$(BUILD_DIR)\php-$(PHP_VERSION_STRING)") else (echo phpsdk_sbom not found; skipping SBOM generation)
+!endif
 	cd $(BUILD_DIR)\php-$(PHP_VERSION_STRING)
 	-$(7ZA) a ..\$(DIST_ZIP_SNAP) .
 	cd $(BUILD_DIR)\pecl-$(PHP_VERSION_STRING)
