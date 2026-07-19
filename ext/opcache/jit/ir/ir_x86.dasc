@@ -15,6 +15,10 @@
 |.globals ir_lb
 |.section code, cold_code, rodata, jmp_table
 
+#ifdef _WIN32
+extern uint32_t _tls_index;
+#endif
+
 |.define IR_LOOP_ALIGNMENT, 16
 
 #ifdef IR_DEBUG
@@ -1684,6 +1688,12 @@ get_arg_hints:
 			cc = ir_get_call_conv_dsc(ctx->flags);
 			constraints->def_reg = cc->int_ret_reg;
 			break;
+#ifdef _WIN32
+		case IR_TLS:
+			constraints->tmp_regs[0] = IR_TMP_REG(1, IR_ADDR, IR_LOAD_SUB_REF, IR_SAVE_SUB_REF);
+			n = 1;
+			break;
+#endif
 		case IR_IF_INT:
 		case IR_GUARD:
 		case IR_GUARD_NOT:
@@ -10838,21 +10848,29 @@ static void ir_emit_tls(ir_ctx *ctx, ir_ref def, ir_insn *insn)
 	ir_backend_data *data = ctx->data;
 	dasm_State **Dst = &data->dasm_state;
 	ir_reg reg = IR_REG_NUM(ctx->regs[def][0]);
+#ifdef _WIN32
+	ir_reg tls_index_reg = ctx->regs[def][1];
+#endif
 
 	if (ctx->use_lists[def].count == 1) {
 		/* dead load */
 		return;
 	}
 
+#ifdef _WIN32
+	ir_emit_load_imm_int(ctx, IR_ADDR, tls_index_reg, (uintptr_t) &_tls_index);
+#endif
 |.if X64WIN
+|	mov Rd(tls_index_reg), dword [Ra(tls_index_reg)]
 |	gs
 |	mov Ra(reg), aword [0x58]
-|	mov Ra(reg), aword [Ra(reg)+insn->op2]
+|	mov Ra(reg), aword [Ra(reg)+Ra(tls_index_reg)*8]
 |	mov Ra(reg), aword [Ra(reg)+insn->op3]
 |.elif WIN
+|	mov Rd(tls_index_reg), dword [Ra(tls_index_reg)]
 |	fs
 |	mov Ra(reg), aword [0x2c]
-|	mov Ra(reg), aword [Ra(reg)+insn->op2]
+|	mov Ra(reg), aword [Ra(reg)+Ra(tls_index_reg)*4]
 |	mov Ra(reg), aword [Ra(reg)+insn->op3]
 |.elif X64APPLE
 |	gs
