@@ -30,10 +30,6 @@
 #include "ext/random/php_random.h"
 #include "ext/random/php_random_csprng.h"
 
-#ifndef mpz_fits_si_p
-# define mpz_fits_si_p mpz_fits_slong_p
-#endif
-
 #define GMP_ROUND_ZERO      0
 #define GMP_ROUND_PLUSINF   1
 #define GMP_ROUND_MINUSINF  2
@@ -107,6 +103,50 @@ PHP_GMP_API zend_class_entry *php_gmp_class_entry(void) {
 static void gmp_strval(zval *result, mpz_t gmpnum, int base);
 static zend_result convert_zstr_to_gmp(mpz_t gmp_number, const zend_string *val, zend_long base, uint32_t arg_pos);
 
+#if SIZEOF_ZEND_LONG == SIZEOF_LONG
+# define gmp_mpz_set_zend_long mpz_set_si
+# define gmp_mpz_get_zend_long mpz_get_si
+# define gmp_mpz_fits_zend_long mpz_fits_slong_p
+#else
+ZEND_STATIC_ASSERT(
+	GMP_NUMB_BITS >= SIZEOF_ZEND_LONG * CHAR_BIT,
+	"gmp_mpz_get_zend_long assumes a zend_long fits in one limb");
+
+static void gmp_mpz_set_zend_long(mpz_ptr number, zend_long value)
+{
+	zend_ulong magnitude = value < 0
+		? (zend_ulong) (-(value + 1)) + 1
+		: (zend_ulong) value;
+
+	mpz_import(number, 1, 1, sizeof(magnitude), 0, 0, &magnitude);
+	if (value < 0) {
+		mpz_neg(number, number);
+	}
+}
+
+static zend_long gmp_mpz_get_zend_long(mpz_srcptr number)
+{
+	zend_ulong zl = (zend_ulong) mpz_getlimbn(number, 0);
+
+	if (mpz_sgn(number) > 0) {
+		return (zend_long) (zl & ZEND_LONG_MAX);
+	}
+	if (mpz_sgn(number) < 0) {
+		return -1 - (zend_long) ((zl - 1) & ZEND_LONG_MAX);
+	}
+	return 0;
+}
+
+static bool gmp_mpz_fits_zend_long(mpz_srcptr number)
+{
+	const size_t width = sizeof(zend_long) * CHAR_BIT;
+	const size_t bits = mpz_sizeinbase(number, 2);
+
+	return bits < width
+		|| (mpz_sgn(number) < 0 && bits == width && mpz_scan1(number, 0) == width - 1);
+}
+#endif
+
 static bool gmp_zend_parse_arg_into_mpz_ex(
 	zval *arg,
 	mpz_ptr *destination_mpz_ptr,
@@ -127,7 +167,7 @@ static bool gmp_zend_parse_arg_into_mpz_ex(
 	}
 
 	if (Z_TYPE_P(arg) == IS_LONG) {
-		mpz_set_si(*destination_mpz_ptr, Z_LVAL_P(arg));
+		gmp_mpz_set_zend_long(*destination_mpz_ptr, Z_LVAL_P(arg));
 		return true;
 	}
 
@@ -143,7 +183,7 @@ static bool gmp_zend_parse_arg_into_mpz_ex(
 			return false;
 		}
 
-		mpz_set_si(*destination_mpz_ptr, lval);
+		gmp_mpz_set_zend_long(*destination_mpz_ptr, lval);
 
 		return true;
 	}
@@ -241,7 +281,7 @@ static zend_result gmp_cast_object(zend_object *readobj, zval *writeobj, int typ
 		return SUCCESS;
 	case IS_LONG:
 		gmpnum = GET_GMP_OBJECT_FROM_OBJ(readobj)->num;
-		ZVAL_LONG(writeobj, mpz_get_si(gmpnum));
+		ZVAL_LONG(writeobj, gmp_mpz_get_zend_long(gmpnum));
 		return SUCCESS;
 	case IS_DOUBLE:
 		gmpnum = GET_GMP_OBJECT_FROM_OBJ(readobj)->num;
@@ -249,8 +289,8 @@ static zend_result gmp_cast_object(zend_object *readobj, zval *writeobj, int typ
 		return SUCCESS;
 	case _IS_NUMBER:
 		gmpnum = GET_GMP_OBJECT_FROM_OBJ(readobj)->num;
-		if (mpz_fits_si_p(gmpnum)) {
-			ZVAL_LONG(writeobj, mpz_get_si(gmpnum));
+		if (gmp_mpz_fits_zend_long(gmpnum)) {
+			ZVAL_LONG(writeobj, gmp_mpz_get_zend_long(gmpnum));
 		} else {
 			ZVAL_DOUBLE(writeobj, mpz_get_d(gmpnum));
 		}
@@ -732,7 +772,7 @@ static zend_result gmp_initialize_number(mpz_ptr gmp_number, const zend_string *
 		return convert_zstr_to_gmp(gmp_number, arg_str, base, 1);
 	}
 
-	mpz_set_si(gmp_number, arg_l);
+	gmp_mpz_set_zend_long(gmp_number, arg_l);
 	return SUCCESS;
 }
 
@@ -882,7 +922,7 @@ ZEND_FUNCTION(gmp_intval)
 		GMP_Z_PARAM_INTO_MPZ_PTR(gmpnum)
 	ZEND_PARSE_PARAMETERS_END();
 
-	RETVAL_LONG(mpz_get_si(gmpnum));
+	RETVAL_LONG(gmp_mpz_get_zend_long(gmpnum));
 }
 /* }}} */
 
@@ -1611,7 +1651,14 @@ ZEND_FUNCTION(gmp_random_range)
 /* }}} */
 
 static bool gmp_is_bit_index_valid(zend_long index) {
-	return index >= 0 && (index / GMP_NUMB_BITS < INT_MAX);
+	return index >= 0
+		&& (index / GMP_NUMB_BITS < INT_MAX)
+		&& (zend_ulong) index < (mp_bitcnt_t) -1;
+}
+
+static zend_long gmp_bitcnt_to_zend_long(mp_bitcnt_t value)
+{
+	return value == (mp_bitcnt_t) -1 ? -1 : (zend_long) value;
 }
 
 /* {{{ Sets or clear bit in a */
@@ -1691,7 +1738,7 @@ ZEND_FUNCTION(gmp_popcount)
 		GMP_Z_PARAM_INTO_MPZ_PTR(gmpnum_a)
 	ZEND_PARSE_PARAMETERS_END();
 
-	RETURN_LONG(mpz_popcount(gmpnum_a));
+	RETURN_LONG(gmp_bitcnt_to_zend_long(mpz_popcount(gmpnum_a)));
 }
 /* }}} */
 
@@ -1705,7 +1752,7 @@ ZEND_FUNCTION(gmp_hamdist)
 		GMP_Z_PARAM_INTO_MPZ_PTR(gmpnum_b)
 	ZEND_PARSE_PARAMETERS_END();
 
-	RETURN_LONG(mpz_hamdist(gmpnum_a, gmpnum_b));
+	RETURN_LONG(gmp_bitcnt_to_zend_long(mpz_hamdist(gmpnum_a, gmpnum_b)));
 }
 /* }}} */
 
@@ -1725,7 +1772,7 @@ ZEND_FUNCTION(gmp_scan0)
 		RETURN_THROWS();
 	}
 
-	RETURN_LONG(mpz_scan0(gmpnum_a, start));
+	RETURN_LONG(gmp_bitcnt_to_zend_long(mpz_scan0(gmpnum_a, start)));
 }
 /* }}} */
 
@@ -1745,7 +1792,7 @@ ZEND_FUNCTION(gmp_scan1)
 		RETURN_THROWS();
 	}
 
-	RETURN_LONG(mpz_scan1(gmpnum_a, start));
+	RETURN_LONG(gmp_bitcnt_to_zend_long(mpz_scan1(gmpnum_a, start)));
 }
 /* }}} */
 

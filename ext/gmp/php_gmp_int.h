@@ -39,10 +39,9 @@ typedef struct _gmp_object {
 
 PHP_GMP_API zend_class_entry *php_gmp_class_entry(void);
 
-/* GMP and MPIR use different datatypes on different platforms */
 #ifdef _WIN64
-typedef zend_long gmp_long;
-typedef zend_ulong gmp_ulong;
+typedef zend_long gmp_long; /* Kept for compatibility with the installed header. */
+typedef unsigned long gmp_ulong;
 #else
 typedef long gmp_long;
 typedef unsigned long gmp_ulong;

@@ -57,6 +57,11 @@ PHP 8.6 UPGRADE NOTES
     are outside the unsigned long range, instead of silently truncating them.
   . GMP integer string parsing now throw ValueError strings containing NUL
     bytes, instead of silently truncating them.
+  . Windows builds now use GMP instead of MPIR, and building ext/gmp against
+    MPIR is no longer supported. On 64-bit Windows, unsigned long arguments to
+    gmp_pow(), gmp_root(), gmp_rootrem(), gmp_fact(), gmp_binomial(), and the
+    power and shift operators are therefore limited to 2^32 - 1. Bit indexes
+    are limited to 2^32 - 2 because the all-ones value is reserved by GMP.
 
 - Intl:
   . Passing a non-stringable object as a time zone to Intl APIs that accept
