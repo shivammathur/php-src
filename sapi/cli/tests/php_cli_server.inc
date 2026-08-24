@@ -8,6 +8,55 @@ class CliServerInfo {
     ) {}
 }
 
+function php_cli_server_startup_failure(
+    string $reason,
+    array $cmd,
+    string $doc_root,
+    string $output_file,
+    $handle = null,
+    ?array $status = null,
+): never {
+    if (is_resource($handle) && $status === null) {
+        $status = proc_get_status($handle);
+    }
+
+    $output = file_get_contents($output_file);
+    if ($output === false) {
+        $output = '<unable to read server output file>';
+    }
+
+    echo "\n================ PHP CLI SERVER STARTUP FAILURE ================\n";
+    printf("Reason: %s\n", $reason);
+    printf("PHP version: %s\n", PHP_VERSION);
+    printf("PHP binary: %s\n", PHP_BINARY);
+    printf("OS: %s\n", PHP_OS);
+    printf("Working directory: %s\n", $doc_root);
+    printf("Working directory exists: %s\n", is_dir($doc_root) ? 'yes' : 'no');
+    printf("Server executable exists: %s\n", is_file($cmd[0]) ? 'yes' : 'no');
+    echo "Command arguments:\n";
+    foreach ($cmd as $index => $argument) {
+        printf("  [%d] %s\n", $index, var_export($argument, true));
+    }
+    if (PHP_OS_FAMILY === 'Windows'
+            && isset($status['exitcode'])
+            && $status['exitcode'] < 0
+            && $status['exitcode'] !== -1) {
+        $windows_exit_code = substr(sprintf('%08X', $status['exitcode']), -8);
+        $windows_exit_description = $windows_exit_code === 'C0000005'
+            ? 'access violation'
+            : 'NTSTATUS failure';
+        printf("Windows exit status: 0x%s (%s)\n", $windows_exit_code, $windows_exit_description);
+    }
+    printf("Process status: %s\n", $status === null ? '<unavailable>' : var_export($status, true));
+    printf("Captured server output (%d bytes):\n%s\n", strlen($output), $output);
+    echo "============== END PHP CLI SERVER STARTUP FAILURE ==============\n";
+
+    if (is_resource($handle) && ($status['running'] ?? false)) {
+        proc_terminate($handle);
+    }
+    exit(1);
+}
+
 function php_cli_server_start(
     ?string $code = 'echo "Hello world";',
     ?string $router = 'index.php',
@@ -45,6 +94,14 @@ function php_cli_server_start(
         2 => $output_file_fd,
     );
     $handle = proc_open($cmd, $descriptorspec, $pipes, $doc_root, null, array("suppress_errors" => true));
+    if ($handle === false) {
+        php_cli_server_startup_failure(
+            'proc_open() failed to create the server process',
+            $cmd,
+            $doc_root,
+            $output_file,
+        );
+    }
 
     // First, wait for the dev server to declare itself ready.
     $bound = null;
@@ -52,10 +109,14 @@ function php_cli_server_start(
         usleep(50000); // 50ms per try
         $status = proc_get_status($handle);
         if (empty($status['running'])) {
-            echo "Server failed to start\n";
-            printf("Server output:\n%s\n", file_get_contents($output_file));
-            proc_terminate($handle);
-            exit(1);
+            php_cli_server_startup_failure(
+                'Server process exited before announcing that it was ready',
+                $cmd,
+                $doc_root,
+                $output_file,
+                $handle,
+                $status,
+            );
         }
 
         $output = file_get_contents($output_file);
@@ -65,23 +126,26 @@ function php_cli_server_start(
         }
     }
     if ($bound === null) {
-        echo "Server did not output startup message";
-        printf("Server output:\n%s\n", file_get_contents($output_file));
-        proc_terminate($handle);
-        exit(1);
+        php_cli_server_startup_failure(
+            'Server did not output its startup message within 3 seconds',
+            $cmd,
+            $doc_root,
+            $output_file,
+            $handle,
+        );
     }
 
     // Now wait for a connection to succeed.
     // note: even when server prints 'Listening on localhost:8964...Press Ctrl-C to quit.'
     //       it might not be listening yet...need to wait until fsockopen() call returns
-    $error = "Unable to connect to server\n";
+    $error = 'Unable to connect to server within 3 seconds';
     for ($i=0; $i < 60; $i++) {
         usleep(50000); // 50ms per try
         $status = proc_get_status($handle);
         $fp = @fsockopen("tcp://$bound");
         // Failure, the server is no longer running
         if (!($status && $status['running'])) {
-            $error = sprintf("Server stopped\nServer output:\n%s\n", file_get_contents($output_file));
+            $error = 'Server process stopped before accepting a connection';
             break;
         }
         // Success, Connected to servers
@@ -92,9 +156,14 @@ function php_cli_server_start(
     }
 
     if ($error) {
-        echo $error;
-        proc_terminate($handle);
-        exit(1);
+        php_cli_server_startup_failure(
+            $error,
+            $cmd,
+            $doc_root,
+            $output_file,
+            $handle,
+            $status,
+        );
     }
 
     register_shutdown_function(
