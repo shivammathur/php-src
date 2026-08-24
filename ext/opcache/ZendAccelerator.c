@@ -3077,7 +3077,11 @@ static zend_result zend_accel_init_shm(void)
 	int i;
 	size_t accel_shared_globals_size;
 
+#ifdef ZEND_WIN32
+	ZEND_ASSERT(ZCG(locked));
+#else
 	zend_shared_alloc_lock();
+#endif
 
 	if (ZCG(accel_directives).interned_strings_buffer) {
 		accel_shared_globals_size = sizeof(zend_accel_shared_globals) + ZCG(accel_directives).interned_strings_buffer * 1024 * 1024;
@@ -3089,14 +3093,12 @@ static zend_result zend_accel_init_shm(void)
 
 	accel_shared_globals = zend_shared_alloc(accel_shared_globals_size);
 	if (!accel_shared_globals) {
-		zend_shared_alloc_unlock();
 		zend_accel_error_noreturn(ACCEL_LOG_FATAL,
 				"Insufficient shared memory for interned strings buffer! (tried to allocate %zu bytes)",
 				accel_shared_globals_size);
 		return FAILURE;
 	}
 	memset(accel_shared_globals, 0, sizeof(zend_accel_shared_globals));
-	ZSMMG(app_shared_globals) = accel_shared_globals;
 
 	zend_accel_hash_init(&ZCSG(hash), ZCG(accel_directives).max_accelerated_files);
 
@@ -3159,6 +3161,7 @@ static zend_result zend_accel_init_shm(void)
 		ZCSG(uninitialized_bucket)[i] = HT_INVALID_IDX;
 	}
 
+	ZSMMG(app_shared_globals) = accel_shared_globals;
 	zend_shared_alloc_unlock();
 
 	return SUCCESS;

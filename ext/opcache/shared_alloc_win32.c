@@ -115,6 +115,7 @@ void zend_shared_alloc_unlock_win32(void)
 static int zend_shared_alloc_reattach(size_t requested_size, const char **error_in)
 {
 	int err;
+	zend_smm_shared_globals *mapped_shared_globals;
 	void *wanted_mapping_base;
 	MEMORY_BASIC_INFORMATION info;
 	void *execute_ex_base;
@@ -194,7 +195,14 @@ static int zend_shared_alloc_reattach(size_t requested_size, const char **error_
 		}
 	}
 
-	smm_shared_globals = (zend_smm_shared_globals *) ((char*)mapping_base + ACCEL_BASE_POINTER_SIZE);
+	mapped_shared_globals = (zend_smm_shared_globals *) ((char*)mapping_base + ACCEL_BASE_POINTER_SIZE);
+	if (!mapped_shared_globals->app_shared_globals) {
+		UnmapViewOfFile(mapping_base);
+		mapping_base = NULL;
+		SetLastError(ERROR_INVALID_DATA);
+		return ALLOC_FAIL_MAPPING;
+	}
+	smm_shared_globals = mapped_shared_globals;
 
 	return SUCCESSFULLY_REATTACHED;
 }
@@ -291,7 +299,6 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
 			s += 2;
 		}
 		if (sscanf(s, "%p", &default_mapping_base_set[0]) != 1) {
-			zend_shared_alloc_unlock_win32();
 			zend_win_error_message(ACCEL_LOG_FATAL, "Bad mapping address specified in opcache.mmap_base", err);
 			return ALLOC_FAILURE;
 		}
@@ -307,7 +314,6 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
 
 	if (mapping_base == NULL) {
 		err = GetLastError();
-		zend_shared_alloc_unlock_win32();
 		zend_win_error_message(ACCEL_LOG_FATAL, "Unable to create view for file mapping", err);
 		*error_in = "MapViewOfFile";
 		return ALLOC_FAILURE;
@@ -327,8 +333,7 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
 	shared_segment->pos = ACCEL_BASE_POINTER_SIZE;
 	shared_segment->size = requested_size - ACCEL_BASE_POINTER_SIZE;
 
-	zend_shared_alloc_unlock_win32();
-
+	/* Keep locked until app_shared_globals is published. */
 	return ALLOC_SUCCESS;
 }
 

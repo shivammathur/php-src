@@ -183,7 +183,7 @@ int zend_shared_alloc_startup(size_t requested_size, size_t reserved_size)
 {
 	zend_shared_segment **tmp_shared_segments;
 	size_t shared_segments_array_size;
-	zend_smm_shared_globals tmp_shared_globals, *p_tmp_shared_globals;
+	zend_smm_shared_globals tmp_shared_globals = {0}, *p_tmp_shared_globals;
 	const char *error_in = NULL;
 	const zend_shared_memory_handler_entry *he;
 	int res = ALLOC_FAILURE;
@@ -271,7 +271,7 @@ int zend_shared_alloc_startup(size_t requested_size, size_t reserved_size)
 	shared_segments_array_size = ZSMMG(shared_segments_count) * S_H(segment_type_size)();
 
 	/* move shared_segments and shared_free to shared memory */
-	ZCG(locked) = 1; /* no need to perform a real lock at this point */
+	ZCG(locked) = 1; /* no other process can access this shared memory yet */
 
 	p_tmp_shared_globals = (zend_smm_shared_globals *) zend_shared_alloc(sizeof(zend_smm_shared_globals));
 	if (!p_tmp_shared_globals) {
@@ -312,7 +312,9 @@ int zend_shared_alloc_startup(size_t requested_size, size_t reserved_size)
 		}
 	}
 
+#ifndef ZEND_WIN32
 	ZCG(locked) = 0;
+#endif
 
 	return res;
 }
