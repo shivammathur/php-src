@@ -828,7 +828,10 @@ static sdlPtr load_wsdl(zval *this_ptr, char *struri)
 	zend_hash_init(&ctx.portTypes, 0, NULL, NULL, 0);
 	zend_hash_init(&ctx.services,  0, NULL, NULL, 0);
 
-	ctx.headers_to_keep = Z_LVAL_P(Z_CLIENT_KEEP_HEADERS_P(this_ptr));
+	ctx.headers_to_keep = 0;
+	if (instanceof_function(Z_OBJCE_P(this_ptr), soap_class_entry)) {
+		ctx.headers_to_keep = Z_LVAL_P(Z_CLIENT_KEEP_HEADERS_P(this_ptr));
+	}
 
 	zend_try {
 		load_wsdl_ex(this_ptr, struri, &ctx, false);
