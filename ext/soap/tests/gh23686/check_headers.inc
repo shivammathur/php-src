@@ -23,7 +23,7 @@ function start_server(string $code, ?string $entry_point) {
 function check_headers_for_import(string $logs_path, $context, array $options = []) {
 	$code = file_get_contents(__DIR__ . "/soap-respond-with-headers.inc");
 	$code = substr($code, strpos($code, "<?php") + strlen("<?php"));
-	$code = str_replace("{LOG_FILE}", $logs_path, $code);
+	$code = str_replace('"{LOG_FILE}"', var_export($logs_path, true), $code);
 
 	$logging_server = start_server($code, null);
 
@@ -61,7 +61,7 @@ function check_headers_for_import(string $logs_path, $context, array $options = 
 function check_headers_for_schema(string $logs_path, $context, array $options = []) {
 	$code = file_get_contents(__DIR__ . "/schema-respond-with-headers.inc");
 	$code = substr($code, strpos($code, "<?php") + strlen("<?php"));
-	$code = str_replace("{LOG_FILE}", $logs_path, $code);
+	$code = str_replace('"{LOG_FILE}"', var_export($logs_path, true), $code);
 
 	$logging_server = start_server($code, null);
 
