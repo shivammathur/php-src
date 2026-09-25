@@ -1804,8 +1804,9 @@ function ADD_SOURCES(dir, file_list, target, obj_dir, duplicate_sources)
 					var _tmp = src.split("\\");
 					var filename = _tmp.pop();
 					obj = filename.replace(re, ".obj");
+					var c11_flag = VS_TOOLSET && target != "intl" && /\.c$/i.test(src) ? " /std:c11" : "";
 
-					MFO.WriteLine("\t" + CMD_MOD1 + "$(CC) $(" + flags + ") $(CFLAGS) $(" + bd_flags_name + ") /c " + dir + "\\" + src + " /Fo" + sub_build + d + obj);
+					MFO.WriteLine("\t" + CMD_MOD1 + "$(CC) $(" + flags + ") $(CFLAGS)" + c11_flag + " $(" + bd_flags_name + ") /c " + dir + "\\" + src + " /Fo" + sub_build + d + obj);
 
 					if ("clang" == PHP_ANALYZER) {
 						MFO.WriteLine("\t" + CMD_MOD1 + "\"$(CLANG_CL)\" " + analyzer_base_args + " $(" + flags + "_ANALYZER) $(CFLAGS_ANALYZER) $(" + bd_flags_name + "_ANALYZER) " + dir + "\\" + src);
@@ -1823,7 +1824,8 @@ function ADD_SOURCES(dir, file_list, target, obj_dir, duplicate_sources)
 					src_line += dir + "\\" + file_list[srcs_by_dir[k][j]] + " ";
 				}
 
-				MFO.WriteLine("\t" + CMD_MOD1 + "$(CC) $(" + flags + ") $(CFLAGS) /Fo" + sub_build + d + " $(" + bd_flags_name + ") /c " + src_line);
+				var c11_flag = VS_TOOLSET && /\.c\s/i.test(src_line) && !/\.cpp\s/i.test(src_line) ? " /std:c11" : "";
+				MFO.WriteLine("\t" + CMD_MOD1 + "$(CC) $(" + flags + ") $(CFLAGS)" + c11_flag + " /Fo" + sub_build + d + " $(" + bd_flags_name + ") /c " + src_line);
 
 				if ("clang" == PHP_ANALYZER) {
 					MFO.WriteLine("\t\"$(CLANG_CL)\" " + analyzer_base_args + " $(" + flags + "_ANALYZER) $(CFLAGS_ANALYZER)  $(" + bd_flags_name + "_ANALYZER) " + src_line);
