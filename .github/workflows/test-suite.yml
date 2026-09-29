@@ -846,7 +846,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(inputs.branch).jobs.WINDOWS.matrix }}
-    name: "WINDOWS_${{ matrix.x64 && 'X64' || 'X86' }}_${{ matrix.zts && 'ZTS' || 'NTS' }}${{ matrix.asan && '_ASAN' || ''}}${{ matrix.clang && '_CLANG' || ''}}"
+    name: "WINDOWS_${{ matrix.x64 && 'X64' || 'X86' }}_${{ matrix.zts && 'ZTS' || 'NTS' }}${{ matrix.asan && '_ASAN' || ''}}${{ matrix.clang && '_CLANG' || ''}}${{ matrix.serial && '_SERIAL' || '' }}"
     runs-on: ${{ fromJson(inputs.branch).jobs.WINDOWS.config.runs_on }}
     timeout-minutes: 180
     env:
@@ -862,6 +862,7 @@ jobs:
       OPCACHE: "${{ matrix.opcache && '1' || '0' }}"
       ASAN: "${{ matrix.asan && '1' || '0' }}"
       CLANG_TOOLSET: "${{ matrix.clang && '1' || '0' }}"
+      ADD_CONF: ${{ matrix.serial && '--with-mp=disable' || '' }}
     steps:
       - name: git config
         run: git config --global core.autocrlf false && git config --global core.eol lf
@@ -875,6 +876,15 @@ jobs:
         run: .github/scripts/windows/build.bat
       - name: Test
         run: .github/scripts/windows/test.bat
+      - name: Save generated build rules
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-rules-${{ matrix.zts }}-${{ matrix.clang }}-${{ matrix.serial }}
+          path: |
+            Makefile
+            Makefile.objects
+            main/config.w32.h
   FREEBSD:
     if: ${{ fromJson(inputs.branch).jobs.FREEBSD }}
     strategy:
