@@ -3350,6 +3350,9 @@ function toolset_setup_common_cflags()
 		ADD_FLAG("CFLAGS", envCFLAGS);
 	}
 
+	// Standalone build/test helpers must use the selected Clang target too.
+	DEFINE("CFLAGS_ARCH", CLANG_TOOLSET ? (TARGET_ARCH == "x86" ? "-m32" : "-m64") : "");
+
 	if (VS_TOOLSET) {
 		ADD_FLAG("CFLAGS", " /FD ");
 
@@ -3400,10 +3403,8 @@ function toolset_setup_common_cflags()
 		if (TARGET_ARCH == 'x86') {
 			// Select PHP's time_t ABI before clang's CRT headers are imported.
 			ADD_FLAG('CFLAGS', '/D _USE_32BIT_TIME_T=1');
-			ADD_FLAG('CFLAGS', '-m32');
-		} else {
-			ADD_FLAG('CFLAGS', '-m64');
 		}
+		ADD_FLAG('CFLAGS', '$(CFLAGS_ARCH)');
 		if (CLANGVERS < 1300) {
 			ADD_FLAG("CFLAGS", " /fallback ");
 		}
