@@ -3397,9 +3397,6 @@ function toolset_setup_common_cflags()
 		ADD_FLAG("CFLAGS", "/Zc:wchar_t");
 	} else if (CLANG_TOOLSET) {
 		ADD_FLAG("CFLAGS", "-Wno-deprecated-declarations -Wno-microsoft-enum-forward-reference");
-		if (PHP_DEBUG == "no" && PHP_SECURITY_FLAGS == "yes") {
-			ADD_FLAG('CFLAGS', "/guard:cf");
-		}
 		if (TARGET_ARCH == 'x86') {
 			// Select PHP's time_t ABI before clang's CRT headers are imported.
 			ADD_FLAG('CFLAGS', '/D _USE_32BIT_TIME_T=1');
@@ -3542,10 +3539,10 @@ function toolset_setup_common_ldflags()
 	// we want msvcrt in the PHP DLL
 	ADD_FLAG("PHP_LDFLAGS", "/nodefaultlib:libcmt");
 
-	if ((VS_TOOLSET || CLANG_TOOLSET) && PHP_SECURITY_FLAGS == "yes") {
-		ADD_FLAG('LDFLAGS', "/GUARD:CF");
-	}
 	if (VS_TOOLSET) {
+		if (PHP_SECURITY_FLAGS == "yes") {
+			ADD_FLAG('LDFLAGS', "/GUARD:CF");
+		}
 		if (PHP_VS_LINK_COMPAT != "no") {
 			// Allow compatible IL versions, do not require an exact match.
 			// Prevents build failures where different libs were built with different (but compatible) IL versions.
