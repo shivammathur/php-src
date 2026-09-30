@@ -170,7 +170,13 @@ const struct mbfl_convert_vtbl vtbl_wchar_sjis_sb = {
 	NULL,
 };
 
-static const char nflags_s[10][2] = {"CN","DE","ES","FR","GB","IT","JP","KR","RU","US"};
+#if __has_attribute(nonstring) && defined(__GNUC__) && ((!defined(__clang__) && __GNUC__ >= 15) || (defined(__clang_major__) && __clang_major__ >= 20))
+# define ZEND_NONSTRING __attribute__((nonstring))
+#else
+# define ZEND_NONSTRING
+#endif
+
+static const char nflags_s[10][2] ZEND_NONSTRING = {"CN","DE","ES","FR","GB","IT","JP","KR","RU","US"};
 static const int nflags_code_kddi[10] = {0x2549, 0x2546, 0x24c0, 0x2545, 0x2548, 0x2547, 0x2750, 0x254a, 0x24c1, 0x27f7};
 static const int nflags_code_sb[10] = {0x2b0a, 0x2b05, 0x2b08, 0x2b04, 0x2b07, 0x2b06, 0x2b02, 0x2b0b, 0x2b09, 0x2b03};
 
@@ -316,7 +322,7 @@ int mbfilter_sjis_emoji_docomo2unicode(int s, int *snd)
 
 #define EMIT_FLAG_EMOJI(country) do { *snd = NFLAGS((country)[0]); return NFLAGS((country)[1]); } while(0)
 
-static const char nflags_kddi[6][2] = {"FR", "DE", "IT", "GB", "CN", "KR"};
+static const char nflags_kddi[6][2] ZEND_NONSTRING = {"FR", "DE", "IT", "GB", "CN", "KR"};
 
 int mbfilter_sjis_emoji_kddi2unicode(int s, int *snd)
 {
@@ -350,7 +356,7 @@ int mbfilter_sjis_emoji_kddi2unicode(int s, int *snd)
 	return 0;
 }
 
-static const char nflags_sb[10][2] = {"JP", "US", "FR", "DE", "IT", "GB", "ES", "RU", "CN", "KR"};
+static const char nflags_sb[10][2] ZEND_NONSTRING = {"JP", "US", "FR", "DE", "IT", "GB", "ES", "RU", "CN", "KR"};
 
 int mbfilter_sjis_emoji_sb2unicode(int s, int *snd)
 {
