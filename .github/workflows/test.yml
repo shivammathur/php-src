@@ -14,12 +14,7 @@ on:
       - UPGRADING
       - UPGRADING.INTERNALS
     branches:
-      - PHP-8.2
-      - PHP-8.3
-      - PHP-8.4
-      - PHP-8.5
-      - PHP-8.6
-      - master
+      - test/macos-split-*
   pull_request:
     paths-ignore: *ignore_paths
     branches:
@@ -35,7 +30,7 @@ concurrency:
 jobs:
   GENERATE_MATRIX:
     name: Generate Matrix
-    if: github.repository == 'php/php-src' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    if: github.repository == 'shivammathur/php-src'
     runs-on: ubuntu-latest
     outputs:
       all_variations: ${{ steps.set-matrix.outputs.all_variations }}
