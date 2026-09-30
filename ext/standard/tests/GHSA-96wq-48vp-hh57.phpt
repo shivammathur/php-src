@@ -2,6 +2,8 @@
 GHSA-96wq-48vp-hh57: signed integer overflow of char array offset
 --CREDITS--
 Aleksey Solovev (Positive Technologies)
+--ENV--
+TEST_TIMEOUT=300
 --INI--
 memory_limit=3G
 --SKIPIF--
