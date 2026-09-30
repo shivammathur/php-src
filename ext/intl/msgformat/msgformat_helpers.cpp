@@ -623,6 +623,11 @@ U_CFUNC void umsg_parse_helper(UMessageFormat *fmt, int *count, zval **args, UCh
 		return;
 	}
 
+	// Have ICU release its own array. Clang's delete[] is not ABI-compatible
+	// with arrays allocated by MSVC-built ICU on Windows x86.
+	Formattable fargs_owner;
+	fargs_owner.adoptArray(fargs, *count);
+
 	*args = (zval *)safe_emalloc(*count, sizeof(zval), 0);
 
     // assign formattables to varargs
@@ -672,5 +677,4 @@ U_CFUNC void umsg_parse_helper(UMessageFormat *fmt, int *count, zval **args, UCh
             break;
         }
     }
-	delete[] fargs;
 }
