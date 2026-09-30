@@ -365,6 +365,31 @@ jobs:
         uses: ./.github/actions/extra-tests
       - name: Verify generated files are up to date
         uses: ./.github/actions/verify-generated-files
+      - name: Inspect macOS build and collect diagnostics
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          report="$RUNNER_TEMP/macos-validation"
+          mkdir -p "$report"
+          { sw_vers; uname -a; clang --version; brew list --versions; } > "$report/environment.txt"
+          git status --short > "$report/git-status.txt"
+          git diff > "$report/generated-files.diff"
+          if [ -f config.log ]; then cp config.log "$report/"; fi
+          if [ -x sapi/cli/php ]; then
+            { file sapi/cli/php; otool -L sapi/cli/php; sapi/cli/php -v; sapi/cli/php --ini; sapi/cli/php -m; } > "$report/php-build.txt"
+            sapi/cli/php -i > "$report/php-info.txt"
+          fi
+          find Zend ext sapi tests -type f -name '*.diff' > "$report/failure-files.txt"
+          if [ -s "$report/failure-files.txt" ]; then
+            tar -czf "$report/test-diffs.tar.gz" -T "$report/failure-files.txt"
+          fi
+      - name: Upload macOS validation artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}-${{ matrix.debug && 'debug' || 'release' }}-${{ matrix.zts && 'zts' || 'nts' }}-${{ github.event_name }}
+          path: ${{ runner.temp }}/macos-validation
+          retention-days: 14
   COVERAGE:
     if: ${{ fromJson(inputs.branch).jobs.COVERAGE }}
     services:
