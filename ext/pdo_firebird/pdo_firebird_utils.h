@@ -15,6 +15,8 @@
 #ifndef PDO_FIREBIRD_UTILS_H
 #define PDO_FIREBIRD_UTILS_H
 
+/* Select the CRT pointer-sized types before Firebird's fallback typedefs. */
+#include <stdint.h>
 #include <ibase.h>
 
 #ifdef __cplusplus
