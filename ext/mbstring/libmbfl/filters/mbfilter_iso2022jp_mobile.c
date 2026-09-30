@@ -52,7 +52,13 @@ extern int mbfl_bisec_srch2(int w, const unsigned short tbl[], int n);
  * This macro converts uppercase ASCII values to Regional Indicator codepoints */
 #define NFLAGS(c) (0x1F1A5+((unsigned int)(c)))
 
-static const char nflags_s[10][2] = {
+#if __has_attribute(nonstring) && defined(__GNUC__) && ((!defined(__clang__) && __GNUC__ >= 15) || (defined(__clang_major__) && __clang_major__ >= 20))
+# define ZEND_NONSTRING __attribute__((nonstring))
+#else
+# define ZEND_NONSTRING
+#endif
+
+static const char nflags_s[10][2] ZEND_NONSTRING = {
 	"CN","DE","ES","FR","GB","IT","JP","KR","RU","US"
 };
 static const int nflags_code_kddi[10] = {
@@ -144,7 +150,7 @@ const struct mbfl_convert_vtbl vtbl_wchar_2022jp_kddi = {
 #define EMIT_KEYPAD_EMOJI(c) do { *snd = (c); return 0x20E3; } while(0)
 #define EMIT_FLAG_EMOJI(country) do { *snd = NFLAGS((country)[0]); return NFLAGS((country)[1]); } while(0)
 
-static const char nflags_kddi[6][2] = {"FR", "DE", "IT", "GB", "CN", "KR"};
+static const char nflags_kddi[6][2] ZEND_NONSTRING = {"FR", "DE", "IT", "GB", "CN", "KR"};
 
 static inline int convert_emoji_cp(int cp)
 {
