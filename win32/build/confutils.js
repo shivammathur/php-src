@@ -3395,6 +3395,8 @@ function toolset_setup_common_cflags()
 	} else if (CLANG_TOOLSET) {
 		ADD_FLAG("CFLAGS", "-Wno-deprecated-declarations -Wno-microsoft-enum-forward-reference");
 		if (TARGET_ARCH == 'x86') {
+			// Select PHP's time_t ABI before clang's CRT headers are imported.
+			ADD_FLAG('CFLAGS', '/D _USE_32BIT_TIME_T=1');
 			ADD_FLAG('CFLAGS', '-m32');
 		} else {
 			ADD_FLAG('CFLAGS', '-m64');
