@@ -1569,6 +1569,10 @@ function EXTENSION(extname, file_list, shared, cflags, dllname, obj_dir)
 				}
 				else if (PHP_DEBUG != "yes" && PHP_PGO != "no") {
 					ADD_FLAG('STATIC_EXT_LDFLAGS', "/LTCG:PGUPDATE");
+					if (VCVERS == 1951 && TARGET_ARCH == 'arm64') {
+						// MSVC 19.51 emits invalid unwind data for shrink-wrapped ARM64 PGO code.
+						ADD_FLAG('STATIC_EXT_LDFLAGS', "/d2:-shrink-wrapping-");
+					}
 				}
 
 				ADD_FLAG("STATIC_EXT_CFLAGS", "/GL /O2");
