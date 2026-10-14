@@ -1,0 +1,118 @@
+name: Validate macOS OpenSSL selection
+on:
+  push:
+    branches: [fix/macos-openssl3-ci]
+permissions:
+  contents: read
+jobs:
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: php83-intel-openssl3
+            runner: macos-15-intel
+            source: fix/macos-openssl3
+            major: '3'
+          - name: php83-arm64-openssl3
+            runner: macos-26
+            source: fix/macos-openssl3
+            major: '3'
+          - name: php86-arm64-openssl4
+            runner: macos-26
+            source: fix/macos-openssl3-upmerge-8.6
+            major: '4'
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    env:
+      EXPECTED_OPENSSL_MAJOR: ${{ matrix.major }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ matrix.source }}
+      - name: Record source and initial image
+        run: |
+          mkdir -p artifacts
+          {
+            git rev-parse HEAD
+            sw_vers
+            echo "ImageOS=$ImageOS ImageVersion=$ImageVersion"
+            clang --version
+            brew list --versions
+            openssl version -a
+          } 2>&1 | tee artifacts/initial-image.txt
+      - name: Update clang
+        timeout-minutes: 10
+        uses: ./.github/actions/macos-update-clang
+      - name: Install dependencies
+        timeout-minutes: 20
+        uses: ./.github/actions/brew
+      - name: Verify versioned selection
+        run: |
+          BREW_OPT="$(brew --prefix)/opt"
+          export PKG_CONFIG_PATH="$BREW_OPT/openssl@$EXPECTED_OPENSSL_MAJOR/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+          {
+            brew list --versions
+            command -v openssl
+            openssl version -a
+            pkg-config --modversion openssl
+            pkg-config --cflags --libs openssl
+            otool -L "$BREW_OPT/curl/lib/libcurl.dylib"
+            otool -L "$BREW_OPT/libpq/lib/libpq.dylib"
+          } 2>&1 | tee artifacts/dependencies.txt
+          [[ "$(pkg-config --modversion openssl)" == "$EXPECTED_OPENSSL_MAJOR."* ]]
+          [[ "$(openssl version)" == "OpenSSL $EXPECTED_OPENSSL_MAJOR."* ]]
+      - name: Configure full PHP with warnings as errors
+        uses: ./.github/actions/configure-macos
+        with:
+          configurationParameters: --enable-debug --disable-zts
+      - name: Build
+        run: make -j"$(sysctl -n hw.logicalcpu)" 2>&1 | tee artifacts/build.log
+      - name: Install
+        run: sudo make install
+      - name: Inspect binary and loaded libraries
+        run: |
+          {
+            sapi/cli/php -n -v
+            sapi/cli/php -n --ri openssl
+            sapi/cli/php -n --ri curl
+            sapi/cli/php -n --ri pgsql
+            otool -L sapi/cli/php
+          } 2>&1 | tee artifacts/binary.txt
+          sapi/cli/php -n -r 'if (!str_starts_with(OPENSSL_VERSION_TEXT, "OpenSSL " . getenv("EXPECTED_OPENSSL_MAJOR") . ".")) { exit(1); }'
+          sapi/cli/php -n --ri openssl | grep -E "OpenSSL Library Version => OpenSSL $EXPECTED_OPENSSL_MAJOR\\."
+          DYLD_PRINT_LIBRARIES=1 sapi/cli/php -n -r 'echo OPENSSL_VERSION_TEXT, "\n", curl_version()["ssl_version"], "\n", PGSQL_LIBPQ_VERSION, "\n";' > artifacts/loaded-libraries.txt 2>&1
+          cp sapi/cli/php artifacts/php
+          shasum -a 256 artifacts/php > artifacts/php.sha256
+      - name: Test OpenSSL and dependent extensions
+        env:
+          SKIP_IO_CAPTURE_TESTS: '1'
+          CI_NO_IPV6: '1'
+          REPORT_EXIT_STATUS: '1'
+          TEST_PHP_JUNIT: artifacts/tests.xml
+        run: |
+          sapi/cli/php -n run-tests.php -n -p "$PWD/sapi/cli/php" -q \
+            -j"$(sysctl -n hw.logicalcpu)" -g FAIL,BORK,LEAK,XLEAK \
+            --offline --no-progress --show-diff --set-timeout 120 \
+            ext/openssl ext/curl ext/pgsql ext/pdo_pgsql 2>&1 | tee artifacts/tests.log
+      - name: Preserve configure and test diagnostics
+        if: always()
+        run: |
+          for file in config.log config.nice Makefile main/php_config.h; do
+            if [[ -f "$file" ]]; then cp "$file" artifacts/; fi
+          done
+          find ext/openssl ext/curl ext/pgsql ext/pdo_pgsql -type f \
+            \( -name '*.diff' -o -name '*.out' -o -name '*.exp' -o -name '*.log' \) \
+            -print > artifacts/test-diagnostic-files.txt
+          tar -czf artifacts/test-diagnostics.tar.gz -T artifacts/test-diagnostic-files.txt
+      - name: Upload evidence and binary
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.name }}
+          path: artifacts/
+          if-no-files-found: error
