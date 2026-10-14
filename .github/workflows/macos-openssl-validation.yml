@@ -10,24 +10,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: php83-intel-openssl3
-            runner: macos-15-intel
-            source: fix/macos-openssl3
-            sha: 5b262c93a197d6ad914123f1767a273a25031f2a
-            new_brew_default: false
-            major: '3'
-          - name: php83-arm64-openssl3
+          - name: php85-arm64-openssl3
             runner: macos-26
-            source: fix/macos-openssl3
-            sha: 5b262c93a197d6ad914123f1767a273a25031f2a
+            source: fix/macos-openssl3-upmerge-8.5
+            sha: 6d983095ded15543e8ab5ce073c8fcc027cee301
             new_brew_default: true
             major: '3'
-          - name: php86-arm64-openssl4
-            runner: macos-26
-            source: fix/macos-openssl3-upmerge-8.6
-            sha: f021930e8f064780b16348008e251f820db3a070
-            new_brew_default: false
-            major: '4'
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
