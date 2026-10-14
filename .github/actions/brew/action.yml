@@ -34,4 +34,6 @@ runs:
           t1lib \
           libxml2 \
           libjpeg \
-          libxslt
+          libxslt \
+          openssl@3
+        echo "$(brew --prefix)/opt/openssl@3/bin" >> "$GITHUB_PATH"
