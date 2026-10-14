@@ -284,13 +284,7 @@ static int gdTcl_UtfToUniChar(const char *str, Tcl_UniChar *chPtr)
     /* or in hexadecimal form, e.g. &#x6C34; */
     byte = *((unsigned char *)str);
     if (byte == '&') {
-#if defined(_M_ARM64) && defined(_MSC_VER) && _MSC_VER == 1951 && !defined(__clang__)
-        /* Work around a VS 2026 ARM64 PGO optimizer crash in the numeric paths. */
-        int i;
-        volatile int n = 0;
-#else
         int i, n = 0;
-#endif
 
         byte = *((unsigned char *)(str + 1));
         if (byte == '#') {
@@ -308,6 +302,10 @@ static int gdTcl_UtfToUniChar(const char *str, Tcl_UniChar *chPtr)
                         break;
                     n = (n * 16) + byte;
                 }
+                if (byte == ';') {
+                    *chPtr = (Tcl_UniChar)n;
+                    return ++i;
+                }
             } else {
                 for (i = 2; i < 8; i++) {
                     byte = *((unsigned char *)(str + i));
@@ -317,10 +315,10 @@ static int gdTcl_UtfToUniChar(const char *str, Tcl_UniChar *chPtr)
                         break;
                     }
                 }
-            }
-            if (byte == ';') {
-                *chPtr = (Tcl_UniChar)n;
-                return ++i;
+                if (byte == ';') {
+                    *chPtr = (Tcl_UniChar)n;
+                    return ++i;
+                }
             }
         } else {
             key.name = p = entity_name_buf;
