@@ -13,14 +13,20 @@ jobs:
           - name: php83-intel-openssl3
             runner: macos-15-intel
             source: fix/macos-openssl3
+            sha: 5b262c93a197d6ad914123f1767a273a25031f2a
+            new_brew_default: false
             major: '3'
           - name: php83-arm64-openssl3
             runner: macos-26
             source: fix/macos-openssl3
+            sha: 5b262c93a197d6ad914123f1767a273a25031f2a
+            new_brew_default: true
             major: '3'
           - name: php86-arm64-openssl4
             runner: macos-26
             source: fix/macos-openssl3-upmerge-8.6
+            sha: f021930e8f064780b16348008e251f820db3a070
+            new_brew_default: false
             major: '4'
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
@@ -35,8 +41,11 @@ jobs:
         with:
           ref: ${{ matrix.source }}
       - name: Record source and initial image
+        env:
+          EXPECTED_SOURCE_SHA: ${{ matrix.sha }}
         run: |
           mkdir -p artifacts
+          [[ "$(git rev-parse HEAD)" == "$EXPECTED_SOURCE_SHA" ]]
           {
             git rev-parse HEAD
             sw_vers
@@ -51,10 +60,23 @@ jobs:
       - name: Install dependencies
         timeout-minutes: 20
         uses: ./.github/actions/brew
+      - name: Reproduce updated Homebrew default and dependent libraries
+        if: matrix.new_brew_default
+        timeout-minutes: 20
+        run: |
+          brew update
+          brew install openssl@4
+          brew reinstall curl libpq
+          {
+            ls -ld "$(brew --prefix)/opt/openssl"
+            pkg-config --modversion openssl
+            pkg-config --cflags --libs openssl
+          } | tee artifacts/updated-default.txt
+          [[ "$(pkg-config --modversion openssl)" == 4.* ]]
       - name: Verify versioned selection
         run: |
           BREW_OPT="$(brew --prefix)/opt"
-          export PKG_CONFIG_PATH="$BREW_OPT/openssl@$EXPECTED_OPENSSL_MAJOR/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+          export PKG_CONFIG_PATH="${PKG_CONFIG_PATH:-}:$BREW_OPT/openssl@$EXPECTED_OPENSSL_MAJOR/lib/pkgconfig"
           {
             brew list --versions
             command -v openssl
@@ -70,7 +92,10 @@ jobs:
         with:
           configurationParameters: --enable-debug --disable-zts
       - name: Build
-        run: make -j"$(sysctl -n hw.logicalcpu)" 2>&1 | tee artifacts/build.log
+        run: |
+          BREW_PREFIX="$(brew --prefix)"
+          export PATH="$BREW_PREFIX/opt/bison/bin:$PATH"
+          make -j"$(sysctl -n hw.logicalcpu)" 2>&1 | tee artifacts/build.log
       - name: Install
         run: sudo make install
       - name: Inspect binary and loaded libraries
