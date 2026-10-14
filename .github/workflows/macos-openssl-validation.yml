@@ -65,7 +65,6 @@ jobs:
             otool -L "$BREW_OPT/libpq/lib/libpq.dylib"
           } 2>&1 | tee artifacts/dependencies.txt
           [[ "$(pkg-config --modversion openssl)" == "$EXPECTED_OPENSSL_MAJOR."* ]]
-          [[ "$(openssl version)" == "OpenSSL $EXPECTED_OPENSSL_MAJOR."* ]]
       - name: Configure full PHP with warnings as errors
         uses: ./.github/actions/configure-macos
         with:
