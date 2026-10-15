@@ -34,9 +34,9 @@ function write_pipe($pipe, $data)
     }
 }
 
-$php = getenv("TEST_PHP_EXECUTABLE");
+$php = getenv("TEST_PHP_EXECUTABLE_ESCAPED");
 $args = getenv("TEST_PHP_EXTRA_ARGS");
-$cmd = "$php $args " . __DIR__ . '/proc_open_sockets2.inc';
+$cmd = "$php $args " . escapeshellarg(__DIR__ . '/proc_open_sockets2.inc');
 
 $spec = [
     ['socket'],

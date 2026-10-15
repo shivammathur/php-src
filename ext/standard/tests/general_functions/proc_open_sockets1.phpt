@@ -7,9 +7,9 @@ if (getenv("SKIP_SLOW_TESTS")) die("skip slow test");
 --FILE--
 <?php
 
-$php = getenv("TEST_PHP_EXECUTABLE");
+$php = getenv("TEST_PHP_EXECUTABLE_ESCAPED");
 $args = getenv("TEST_PHP_EXTRA_ARGS");
-$cmd = "$php $args " . __DIR__ . '/proc_open_sockets1.inc';
+$cmd = "$php $args " . escapeshellarg(__DIR__ . '/proc_open_sockets1.inc');
 
 $spec = [
     ['null'],
