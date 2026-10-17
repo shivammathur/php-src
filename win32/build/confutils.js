@@ -1505,6 +1505,10 @@ function EXTENSION(extname, file_list, shared, cflags, dllname, obj_dir)
 		ADD_FLAG("STATIC_EXT_LDFLAGS", "$(LDFLAGS_" + EXT + ")");
 		ADD_FLAG("STATIC_EXT_CFLAGS", "$(CFLAGS_" + EXT + ")");
 		if (is_pgo_desired(extname) && (PHP_PGI == "yes" || PHP_PGO != "no")) {
+			if (PHP_DEBUG != "yes") {
+				ADD_FLAG("CFLAGS_" + EXT, "/GL /O2");
+			}
+
 			if (!static_pgo_enabled) {
 				if (PHP_DEBUG != "yes" && PHP_PGI == "yes") {
 					ADD_FLAG('STATIC_EXT_LDFLAGS', "/LTCG:PGINSTRUMENT");
