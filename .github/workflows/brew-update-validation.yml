@@ -1,0 +1,31 @@
+name: Validate Homebrew update
+on:
+  push:
+    branches:
+      - 'test/brew-update-*'
+permissions:
+  contents: read
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      branches: ${{ steps.matrix.outputs.branches }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: matrix
+        env:
+          TEST_REF: ${{ github.ref_name }}
+          TEST_REPOSITORY: ${{ github.repository }}
+        run: |
+          php .github/matrix.php push 1 "$TEST_REF" '[{"name":"CI: No jobs"},{"name":"CI: macOS"}]' "$TEST_REPOSITORY"
+  macos:
+    needs: matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ${{ fromJSON(needs.matrix.outputs.branches) }}
+    uses: ./.github/workflows/test-suite.yml
+    with:
+      all_variations: false
+      branch: ${{ toJSON(matrix.branch) }}
+    secrets: inherit
