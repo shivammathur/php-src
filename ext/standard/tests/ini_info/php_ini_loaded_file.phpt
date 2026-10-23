@@ -7,8 +7,8 @@ php_ini_loaded_file() function
     $args = getenv('TEST_PHP_EXTRA_ARGS');
     $code = '"var_dump(php_ini_loaded_file());"';
 
-    // No ini file
-    passthru("$php $args -n -r $code");
+    // Do not forward extra arguments: an explicit -c takes precedence over -n.
+    passthru("$php -n -r $code");
 
     // Specified ini file
     passthru("$php $args -c $inifile -r $code");
