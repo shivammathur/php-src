@@ -6805,6 +6805,22 @@ void zend_ffi_set_abi(zend_ffi_dcl *dcl, uint16_t abi) /* {{{ */
 }
 /* }}} */
 
+void zend_ffi_apply_nested_abi(zend_ffi_dcl *dcl, zend_ffi_dcl *nested_dcl) /* {{{ */
+{
+	/* A convention before a nested pointer belongs to the surrounding function. */
+	if (nested_dcl->abi != ZEND_FFI_ABI_DEFAULT) {
+		if (dcl->abi != ZEND_FFI_ABI_DEFAULT) {
+			zend_ffi_cleanup_dcl(nested_dcl);
+			zend_ffi_cleanup_dcl(dcl);
+			zend_ffi_parser_error("Multiple calling convention specifiers at line %d", FFI_G(line));
+			return;
+		}
+		dcl->abi = nested_dcl->abi;
+		nested_dcl->abi = ZEND_FFI_ABI_DEFAULT;
+	}
+}
+/* }}} */
+
 #define SIMPLE_ATTRIBUTES(_) \
 	_(cdecl) \
 	_(fastcall) \

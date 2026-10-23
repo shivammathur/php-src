@@ -1805,6 +1805,21 @@ static int check_nested_declarator_start(int sym) {
 			case YY___DECLSPEC:
 				sym = get_sym();
 				break;
+			case YY___CDECL:
+				sym = get_sym();
+				break;
+			case YY___STDCALL:
+				sym = get_sym();
+				break;
+			case YY___FASTCALL:
+				sym = get_sym();
+				break;
+			case YY___THISCALL:
+				sym = get_sym();
+				break;
+			case YY___VECTORCALL:
+				sym = get_sym();
+				break;
 			case YY__STAR:
 				sym = get_sym();
 				break;
@@ -2643,11 +2658,13 @@ static int parse_declarator(int sym, zend_ffi_dcl *dcl, const char **name, size_
 		if (YY_IN_SET(sym, (YY___ATTRIBUTE,YY___ATTRIBUTE__,YY___DECLSPEC,YY___CDECL,YY___STDCALL,YY___FASTCALL,YY___THISCALL,YY___VECTORCALL), "\000\000\000\000\000\000\360\017\000\000\000\000\000")) {
 			sym = parse_attributes(sym, &nested_dcl);
 		}
+		if (sym == YY__STAR) zend_ffi_apply_nested_abi(dcl, &nested_dcl);
 		sym = parse_declarator(sym, &nested_dcl, name, name_len);
 		if (sym != YY__RPAREN) {
 			yy_error_sym("')' expected, got", sym);
 		}
 		sym = get_sym();
+		zend_ffi_apply_nested_abi(dcl, &nested_dcl);
 		nested = true;
 	} else {
 		yy_error_sym("unexpected", sym);
@@ -2670,11 +2687,13 @@ static int parse_abstract_declarator(int sym, zend_ffi_dcl *dcl) {
 		if (YY_IN_SET(sym, (YY___ATTRIBUTE,YY___ATTRIBUTE__,YY___DECLSPEC,YY___CDECL,YY___STDCALL,YY___FASTCALL,YY___THISCALL,YY___VECTORCALL), "\000\000\000\000\000\000\360\017\000\000\000\000\000")) {
 			sym = parse_attributes(sym, &nested_dcl);
 		}
+		if (sym == YY__STAR) zend_ffi_apply_nested_abi(dcl, &nested_dcl);
 		sym = parse_abstract_declarator(sym, &nested_dcl);
 		if (sym != YY__RPAREN) {
 			yy_error_sym("')' expected, got", sym);
 		}
 		sym = get_sym();
+		zend_ffi_apply_nested_abi(dcl, &nested_dcl);
 		nested = true;
 	}
 	if (sym == YY__LBRACK || sym == YY__LPAREN) {
@@ -2695,11 +2714,13 @@ static int parse_parameter_declarator(int sym, zend_ffi_dcl *dcl, const char **n
 		if (YY_IN_SET(sym, (YY___ATTRIBUTE,YY___ATTRIBUTE__,YY___DECLSPEC,YY___CDECL,YY___STDCALL,YY___FASTCALL,YY___THISCALL,YY___VECTORCALL), "\000\000\000\000\000\000\360\017\000\000\000\000\000")) {
 			sym = parse_attributes(sym, &nested_dcl);
 		}
+		if (sym == YY__STAR) zend_ffi_apply_nested_abi(dcl, &nested_dcl);
 		sym = parse_parameter_declarator(sym, &nested_dcl, name, name_len);
 		if (sym != YY__RPAREN) {
 			yy_error_sym("')' expected, got", sym);
 		}
 		sym = get_sym();
+		zend_ffi_apply_nested_abi(dcl, &nested_dcl);
 		nested = true;
 	} else if (sym == YY_ID) {
 		sym = parse_ID(sym, name, name_len);

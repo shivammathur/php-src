@@ -342,8 +342,10 @@ declarator(zend_ffi_dcl *dcl, const char **name, size_t *name_len):
 	(	ID(name, name_len)
 	|	"("
 		attributes(&nested_dcl)?
+		{if (sym == YY__STAR) zend_ffi_apply_nested_abi(dcl, &nested_dcl);}
 		declarator(&nested_dcl, name, name_len)
 		")"
+		{zend_ffi_apply_nested_abi(dcl, &nested_dcl);}
 		{nested = 1;}
 	)
 	array_or_function_declarators(dcl, &nested_dcl)?
@@ -357,8 +359,10 @@ abstract_declarator(zend_ffi_dcl *dcl):
 	(	&nested_declarator_start
 		"("
 		attributes(&nested_dcl)?
+		{if (sym == YY__STAR) zend_ffi_apply_nested_abi(dcl, &nested_dcl);}
 		abstract_declarator(&nested_dcl)
 		")"
+		{zend_ffi_apply_nested_abi(dcl, &nested_dcl);}
 		{nested = 1;}
 	)?
 	array_or_function_declarators(dcl, &nested_dcl)?
@@ -372,8 +376,10 @@ parameter_declarator(zend_ffi_dcl *dcl, const char **name, size_t *name_len):
 	(	&nested_declarator_start
 		"("
 		attributes(&nested_dcl)?
+		{if (sym == YY__STAR) zend_ffi_apply_nested_abi(dcl, &nested_dcl);}
 		parameter_declarator(&nested_dcl, name, name_len)
 		")"
+		{zend_ffi_apply_nested_abi(dcl, &nested_dcl);}
 		{nested = 1;}
 	|	ID(name, name_len)
 	|	/* empty */
@@ -794,6 +800,11 @@ nested_declarator_start:
 	|	"__attribute"
 	|	"__attribute__"
 	|	"__declspec"
+	|	"__cdecl"
+	|	"__stdcall"
+	|	"__fastcall"
+	|	"__thiscall"
+	|	"__vectorcall"
 	|	"*"
 	|	"("
 	|	"["
