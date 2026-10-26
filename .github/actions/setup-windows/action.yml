@@ -5,9 +5,14 @@ runs:
     - name: Setup MySQL
       shell: cmd
       run: |
-        mysqld --initialize-insecure
-        mysqld --install
-        net start MySQL
+        if not "%MYSQL_VERSION%"=="" (
+          choco install mysql --version=%MYSQL_VERSION% -y --no-progress
+          if errorlevel 1 exit /b 1
+        ) else (
+          mysqld --initialize-insecure
+          mysqld --install
+          net start MySQL
+        )
         mysql --port=3306 --user=root --password="" -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'Password12!'; FLUSH PRIVILEGES;"
     - name: Setup MSSQL
       shell: pwsh
