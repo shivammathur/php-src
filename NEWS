@@ -29,6 +29,9 @@ PHP                                                                        NEWS
   . Fixed bug GH-24436 (Tracing JIT: keep the SEND_VAL type guard after
     assigning to a reference). (waroad)
 
+- OpenSSL:
+  . Fixed build with OpenSSL 4.1. (Weilin Du)
+
 - PDO_PGSQL:
   . Fixed bug GH-24461 (DISCARD ALL on persistent connection cleanup drops
     PgBouncer's prepared statements). (David Carlier, Artem Ukrainskiy)
