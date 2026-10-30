@@ -12,6 +12,7 @@ runs:
         BREW_OPT="$(brew --prefix)"/opt
         export PATH="$BREW_OPT/bison/bin:$PATH"
         export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$BREW_OPT/openssl@1.1/lib/pkgconfig"
+        export CPPFLAGS="-I$BREW_OPT/openssl@1.1/include $CPPFLAGS"
         export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$BREW_OPT/curl/lib/pkgconfig"
         export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$BREW_OPT/krb5/lib/pkgconfig"
         export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$BREW_OPT/libffi/lib/pkgconfig"
