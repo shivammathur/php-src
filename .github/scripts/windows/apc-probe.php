@@ -18,7 +18,7 @@ if ($placement === 'fixed') {
     $header = str_replace("($callconv *", "$callconv (*", $header);
 }
 $ffi = FFI::cdef($header);
-$expectedABI = $ffi->type('ExpectedAPC')->getFuncABI();
+$expectedABI = $ffi->type('ExpectedAPC *')->getPointerType()->getFuncABI();
 foreach (['PAPCFUNC', 'GetCurrentThread_t', 'QueueUserAPC_t', 'SleepEx_t'] as $name) {
     $actualABI = $ffi->type($name)->getPointerType()->getFuncABI();
     echo "$placement $name ABI=$actualABI expected=$expectedABI\n";
