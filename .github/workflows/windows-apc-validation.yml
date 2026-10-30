@@ -1,0 +1,49 @@
+name: Windows APC validation
+on:
+  push:
+    branches: [ci/windows-x86-apc]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86
+            zts: '0'
+          - arch: x86
+            zts: '1'
+          - arch: x64
+            zts: '0'
+    name: ${{ matrix.arch }} ZTS=${{ matrix.zts }}
+    runs-on: windows-2022
+    timeout-minutes: 35
+    env:
+      PHP_BUILD_CACHE_BASE_DIR: C:\build-cache
+      PHP_BUILD_OBJ_DIR: C:\obj
+      PHP_BUILD_CACHE_SDK_DIR: C:\build-cache\sdk
+      PHP_BUILD_SDK_BRANCH: php-sdk-2.8.4
+      PHP_BUILD_CRT: vs17
+      PLATFORM: ${{ matrix.arch }}
+      THREAD_SAFE: ${{ matrix.zts }}
+      INTRINSICS: ''
+    steps:
+      - uses: actions/checkout@v7
+      - name: Enable release symbols
+        shell: pwsh
+        run: |
+          $path = '.github/scripts/windows/build_task.bat'
+          (Get-Content $path -Raw).Replace('--disable-debug-pack', '--enable-debug-pack') | Set-Content $path
+      - name: Build
+        shell: cmd
+        run: .github\scripts\windows\build.bat
+      - name: Diagnose and test
+        shell: pwsh
+        run: .github/scripts/windows/apc-diagnostics.ps1
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: apc-${{ matrix.arch }}-zts${{ matrix.zts }}
+          path: results/
+          if-no-files-found: error
