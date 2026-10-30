@@ -1,0 +1,136 @@
+name: Validate PHP 8.2 macOS OpenSSL 1.1
+on:
+  push:
+    branches: [fix/php-8.2-macos-openssl-1.1-validation]
+permissions:
+  contents: read
+jobs:
+  macos:
+    name: MACOS_ARM64_${{ matrix.debug && 'DEBUG' || 'RELEASE' }}_${{ matrix.zts && 'ZTS' || 'NTS' }}
+    runs-on: macos-15
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        debug: [true, false]
+        zts: [true, false]
+    env:
+      EXPECTED_SOURCE_SHA: 74e655672c44db010a97a3858db0a9054cf66233
+      EXPECTED_DEBUG: ${{ matrix.debug }}
+      EXPECTED_ZTS: ${{ matrix.zts }}
+      REPORT_EXIT_STATUS: '1'
+    steps:
+      - name: Check out source fix
+        uses: actions/checkout@v7
+        with:
+          ref: 74e655672c44db010a97a3858db0a9054cf66233
+      - name: Record source and runner
+        shell: bash
+        run: |
+          EVIDENCE_DIR="$RUNNER_TEMP/php82-openssl11"
+          echo "EVIDENCE_DIR=$EVIDENCE_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$EVIDENCE_DIR"
+          [[ "$(git rev-parse HEAD)" == "$EXPECTED_SOURCE_SHA" ]]
+          {
+            git rev-parse HEAD
+            sw_vers
+            echo "ImageOS=$ImageOS ImageVersion=$ImageVersion"
+          } | tee "$EVIDENCE_DIR/source.txt"
+      - name: Update clang
+        timeout-minutes: 10
+        uses: ./.github/actions/macos-update-clang
+      - name: Install dependencies
+        timeout-minutes: 10
+        uses: ./.github/actions/brew
+      - name: Inspect OpenSSL 1.1 installation
+        shell: bash
+        run: |
+          BREW_OPT="$(brew --prefix)/opt"
+          {
+            brew list --versions openssl@1.1
+            PKG_CONFIG_PATH="$BREW_OPT/openssl@1.1/lib/pkgconfig" pkg-config --modversion --cflags --libs openssl
+            test -f "$BREW_OPT/openssl@1.1/include/openssl/crypto.h"
+          } 2>&1 | tee "$EVIDENCE_DIR/openssl-installation.txt"
+      - name: ccache
+        uses: ./.github/actions/ccache
+        with:
+          name: MACOS_ARM64_${{ matrix.debug && 'DEBUG' || 'RELEASE' }}_${{ matrix.zts && 'ZTS' || 'NTS' }}
+      - name: Configure
+        uses: ./.github/actions/configure-macos
+        with:
+          configurationParameters: >-
+            --${{ matrix.debug && 'enable' || 'disable' }}-debug
+            --${{ matrix.zts && 'enable' || 'disable' }}-zts
+      - name: Verify header detection
+        run: grep '^#define HAVE_OPENSSL_CRYPTO_H 1$' main/php_config.h
+      - name: Build
+        shell: bash
+        run: |
+          BREW_PREFIX="$(brew --prefix)"
+          export PATH="$BREW_PREFIX/opt/bison/bin:$PATH"
+          make -j"$(sysctl -n hw.logicalcpu)" > "$EVIDENCE_DIR/build.log" 2>&1
+      - name: Install
+        run: sudo make install
+      - name: Inspect binary and linked dependencies
+        shell: bash
+        run: |
+          {
+            sapi/cli/php -n -v
+            sapi/cli/php -n --ri openssl
+            sapi/cli/php -n --ri curl
+            otool -L sapi/cli/php
+          } 2>&1 | tee "$EVIDENCE_DIR/binary.txt"
+          sapi/cli/php -n -r '
+            if (PHP_VERSION_ID < 80200 || PHP_VERSION_ID >= 80300
+                || !str_starts_with(OPENSSL_VERSION_TEXT, "OpenSSL 1.1.1")
+                || (bool) PHP_DEBUG !== (getenv("EXPECTED_DEBUG") === "true")
+                || (bool) PHP_ZTS !== (getenv("EXPECTED_ZTS") === "true")) {
+              exit(1);
+            }
+          '
+          sapi/cli/php -n --ri openssl | grep -E '^OpenSSL Library Version => OpenSSL 1\.1\.1'
+          otool -L sapi/cli/php | grep 'libssl\.1\.1\.dylib'
+          otool -L sapi/cli/php | grep 'libcrypto\.1\.1\.dylib'
+          cp sapi/cli/php "$EVIDENCE_DIR/php"
+          shasum -a 256 "$EVIDENCE_DIR/php" > "$EVIDENCE_DIR/php.sha256"
+      - name: Test cURL, OpenSSL, FTP, streams and basic behavior
+        uses: ./.github/actions/test-macos
+        env:
+          TEST_PHP_JUNIT: ${{ runner.temp }}/php82-openssl11/tests.xml
+        with:
+          runTestsParameters: ext/curl ext/openssl ext/ftp ext/standard/tests/streams tests/basic
+      - name: Test with OpCache
+        uses: ./.github/actions/test-macos
+        env:
+          TEST_PHP_JUNIT: ${{ runner.temp }}/php82-openssl11/tests-opcache.xml
+        with:
+          runTestsParameters: ext/curl ext/openssl ext/ftp ext/standard/tests/streams tests/basic
+          enableOpcache: true
+      - name: Test with tracing JIT
+        if: ${{ !matrix.zts }}
+        uses: ./.github/actions/test-macos
+        env:
+          TEST_PHP_JUNIT: ${{ runner.temp }}/php82-openssl11/tests-jit.xml
+        with:
+          runTestsParameters: ext/curl ext/openssl ext/ftp ext/standard/tests/streams tests/basic
+          enableOpcache: true
+          jitType: tracing
+      - name: Verify generated files are up to date
+        uses: ./.github/actions/verify-generated-files
+      - name: Preserve diagnostics
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "$EVIDENCE_DIR"
+          for file in config.log config.nice Makefile main/php_config.h; do
+            if [[ -f "$file" ]]; then cp "$file" "$EVIDENCE_DIR/"; fi
+          done
+          find . -type f \( -name '*.diff' -o -name '*.out' -o -name '*.exp' \) -print > "$EVIDENCE_DIR/diagnostic-files.txt"
+          tar -czf "$EVIDENCE_DIR/test-diagnostics.tar.gz" -T "$EVIDENCE_DIR/diagnostic-files.txt"
+      - name: Upload evidence and binary
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: php82-openssl11-${{ matrix.debug && 'debug' || 'release' }}-${{ matrix.zts && 'zts' || 'nts' }}
+          path: ${{ runner.temp }}/php82-openssl11/
+          if-no-files-found: error
