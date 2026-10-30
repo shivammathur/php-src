@@ -1,17 +1,31 @@
 <?php
 $mode = $argv[1];
+$placement = $argv[2] ?? 'fixed';
 $callconv = PHP_INT_SIZE === 4 ? '__stdcall' : '';
 $kernel32 = FFI::cdef(<<<C
     void *GetCurrentThread(void);
     unsigned long QueueUserAPC(void *callback, void *thread, uintptr_t data);
     unsigned long SleepEx(unsigned long milliseconds, int alertable);
 C, 'kernel32.dll');
-$ffi = FFI::cdef(<<<C
+$header = <<<C
     typedef void ($callconv *PAPCFUNC)(uintptr_t);
     typedef void *($callconv *GetCurrentThread_t)(void);
     typedef unsigned long ($callconv *QueueUserAPC_t)(PAPCFUNC callback, void *thread, uintptr_t data);
     typedef unsigned long ($callconv *SleepEx_t)(unsigned long milliseconds, int alertable);
-C);
+    typedef void $callconv ExpectedAPC(uintptr_t);
+C;
+if ($placement === 'fixed') {
+    $header = str_replace("($callconv *", "$callconv (*", $header);
+}
+$ffi = FFI::cdef($header);
+$expectedABI = $ffi->type('ExpectedAPC')->getFuncABI();
+foreach (['PAPCFUNC', 'GetCurrentThread_t', 'QueueUserAPC_t', 'SleepEx_t'] as $name) {
+    $actualABI = $ffi->type($name)->getPointerType()->getFuncABI();
+    echo "$placement $name ABI=$actualABI expected=$expectedABI\n";
+    if ($placement === 'fixed' && $actualABI !== $expectedABI) {
+        throw new Exception("Wrong ABI for $name");
+    }
+}
 $GetCurrentThread = $ffi->cast('GetCurrentThread_t', $kernel32->GetCurrentThread);
 $QueueUserAPC = $ffi->cast('QueueUserAPC_t', $kernel32->QueueUserAPC);
 $SleepEx = $ffi->cast('SleepEx_t', $kernel32->SleepEx);

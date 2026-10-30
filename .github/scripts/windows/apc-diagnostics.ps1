@@ -10,8 +10,12 @@ $flags = @('-n', '-d', "extension_dir=$build", '-d', 'extension=ffi', '-d', 'ffi
 & $php @flags --ri ffi
 $env:REPORT_EXIT_STATUS = '1'
 $env:TEST_PHP_JUNIT = "$results\phpt.xml"
-& $php -n run-tests.php -p $php @flags -q --offline --no-progress --show-diff ext/standard/tests/general_functions/sleep_alertable_win32.phpt ext/ffi/tests 2>&1 | Tee-Object "$results\phpt.log"
+$sleepTests = @(Get-ChildItem ext/standard/tests -Recurse -Filter '*sleep*.phpt' | ForEach-Object FullName)
+& $php -n run-tests.php -p $php @flags -q --offline --no-progress --show-diff ext/ffi/tests @sleepTests 2>&1 | Tee-Object "$results\phpt.log"
 $testExit = $LASTEXITCODE
+$env:TEST_PHP_JUNIT = "$results\repeat.xml"
+& $php -n run-tests.php -p $php @flags -q --offline --no-progress --show-diff --repeat 20 ext/standard/tests/general_functions/sleep_alertable_win32.phpt 2>&1 | Tee-Object "$results\repeat.log"
+$repeatExit = $LASTEXITCODE
 Copy-Item 'ext/standard/tests/general_functions/sleep_alertable_win32.*' $results -Force
 $debugRoot = "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\$env:PLATFORM"
 $cdb = "$debugRoot\cdb.exe"
@@ -28,13 +32,25 @@ foreach ($mode in 'direct','sleepex','sleepex-nested','usleep','usleep-nested') 
     & $php @flags .github/scripts/windows/apc-probe.php $mode 2>&1 | Tee-Object "$results\$mode.log"
     $code = $LASTEXITCODE
     $summary += @{mode=$mode;exitCode=$code}
+}
+& $php @flags .github/scripts/windows/apc-probe.php sleepex original 2>&1 | Tee-Object "$results\baseline.log"
+$baselineExit = $LASTEXITCODE
+foreach ($placement in 'original','fixed') {
+    $dumpPath = "$results/$placement.dmp".Replace('\', '/')
+    $breakpoints = if ($env:PLATFORM -eq 'x86') { @'
+bu php_ffi!ffi_closure_i386 ".echo CDECL_CLOSURE; gc"
+bu php_ffi!ffi_closure_STDCALL ".echo STDCALL_CLOSURE; gc"
+'@ } else { '' }
     $commands = @"
-sxe -c ".echo ACCESS_VIOLATION; .exr -1; .ecxr; kv 60; r; u @eip-20 @eip+30; dps @esp L30; lm; .dump /ma $results/$mode.dmp; q" av
+sxe -c ".echo ACCESS_VIOLATION; .exr -1; kv 30; r; uf ntdll!RtlDispatchAPC; .dump /ma $dumpPath; q" av
+$breakpoints
 g
 q
 "@
-    $commands | Set-Content "$results\$mode.commands"
-    & $cdb -G -y $symbols -cf "$results\$mode.commands" $php @flags .github/scripts/windows/apc-probe.php $mode 2>&1 | Tee-Object "$results\$mode-debugger.log"
+    $commands | Set-Content "$results\$placement.commands"
+    & $cdb -G -y $symbols -cf "$results\$placement.commands" $php @flags .github/scripts/windows/apc-probe.php sleepex $placement 2>&1 | Tee-Object "$results\$placement-debugger.log"
 }
-@{testExit=$testExit;probes=$summary} | ConvertTo-Json -Depth 5 | Tee-Object "$results\summary.json"
-exit $testExit
+$baselineExpected = if ($env:PLATFORM -eq 'x86') { -1073741819 } else { 0 }
+@{testExit=$testExit;repeatExit=$repeatExit;baselineExit=$baselineExit;baselineExpected=$baselineExpected;probes=$summary} | ConvertTo-Json -Depth 5 | Tee-Object "$results\summary.json"
+if ($testExit -ne 0 -or $repeatExit -ne 0 -or $baselineExit -ne $baselineExpected -or @($summary | Where-Object exitCode -ne 0).Count -gt 0) { exit 1 }
+exit 0
