@@ -1,0 +1,33 @@
+name: Windows APC upstream CI
+on:
+  push:
+    branches: [ci/windows-apc-upstream]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  TEST:
+    name: PHP-8.4 APC fix
+    uses: ./.github/workflows/test-suite.yml
+    with:
+      all_variations: true
+      branch: >-
+        {
+          "name": "PHP-8.4 APC fix",
+          "ref": "267c7407234157453157123599c35f07df71820f",
+          "version": [8, 4],
+          "jobs": {
+            "WINDOWS": {
+              "matrix": {
+                "include": [
+                  {"asan": false, "opcache": true, "x64": true, "zts": true},
+                  {"asan": true, "opcache": true, "x64": true, "zts": true},
+                  {"asan": false, "opcache": false, "x64": false, "zts": false},
+                  {"asan": false, "opcache": true, "x64": false, "zts": true}
+                ]
+              },
+              "config": {"vs_crt_version": "vs17", "runs_on": "windows-2022"}
+            }
+          },
+          "config": {"default_run_test_jobs": "-j2", "ubuntu_version": "22.04", "integrated_opcache": false}
+        }
