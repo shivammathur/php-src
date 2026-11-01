@@ -1,0 +1,14 @@
+name: PHP 8.2 macOS full ZTS CI
+on:
+  push:
+    branches: [fix/php-8.2-curl-openssl-full-zts-ci]
+permissions:
+  contents: read
+jobs:
+  test:
+    name: PHP-8.2
+    uses: shivammathur/php-src/.github/workflows/test-suite.yml@daf2494958059f7f9b67bb1c591772e0c8dd2909
+    with:
+      all_variations: true
+      branch: >-
+        {"name":"PHP-8.2","ref":"daf2494958059f7f9b67bb1c591772e0c8dd2909","version":[8,2],"jobs":{"MACOS":{"matrix":{"arch":["ARM64"],"debug":[true,false],"zts":[true]},"config":{"version":"15"}}},"config":{"default_run_test_jobs":"-j2","ubuntu_version":"22.04","integrated_opcache":false}}
