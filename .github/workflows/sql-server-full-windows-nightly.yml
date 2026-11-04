@@ -1,0 +1,50 @@
+name: SQL Server full Windows nightly
+on:
+  push:
+    branches: [test/windows-sql-full-nightly-20261104]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  php_8_2:
+    name: PHP-8.2
+    uses: shivammathur/php-src/.github/workflows/test-suite.yml@win-reduce-sql-server-flaky-failures
+    with:
+      all_variations: true
+      branch: >-
+        {"name":"PHP-8.2","ref":"win-reduce-sql-server-flaky-failures","jobs":{"WINDOWS":{"matrix":{"include":[{"asan":false,"opcache":true,"x64":true,"zts":true},{"asan":true,"opcache":true,"x64":true,"zts":true},{"asan":false,"opcache":false,"x64":false,"zts":false}]},"config":{"vs_crt_version":"vs16","runs_on":"windows-2022"}}},"config":{"default_run_test_jobs":"-j2","ubuntu_version":"22.04","integrated_opcache":false}}
+  php_8_3:
+    name: PHP-8.3
+    uses: shivammathur/php-src/.github/workflows/test-suite.yml@win-reduce-sql-server-flaky-failures-PHP-8.3
+    with:
+      all_variations: true
+      branch: >-
+        {"name":"PHP-8.3","ref":"win-reduce-sql-server-flaky-failures-PHP-8.3","jobs":{"WINDOWS":{"matrix":{"include":[{"asan":false,"opcache":true,"x64":true,"zts":true},{"asan":true,"opcache":true,"x64":true,"zts":true},{"asan":false,"opcache":false,"x64":false,"zts":false}]},"config":{"vs_crt_version":"vs16","runs_on":"windows-2022"}}},"config":{"default_run_test_jobs":"-j2","ubuntu_version":"22.04","integrated_opcache":false}}
+  php_8_4:
+    name: PHP-8.4
+    uses: shivammathur/php-src/.github/workflows/test-suite.yml@win-reduce-sql-server-flaky-failures-PHP-8.4
+    with:
+      all_variations: true
+      branch: >-
+        {"name":"PHP-8.4","ref":"win-reduce-sql-server-flaky-failures-PHP-8.4","jobs":{"WINDOWS":{"matrix":{"include":[{"asan":false,"opcache":true,"x64":true,"zts":true},{"asan":true,"opcache":true,"x64":true,"zts":true},{"asan":false,"opcache":false,"x64":false,"zts":false}]},"config":{"vs_crt_version":"vs17","runs_on":"windows-2022"}}},"config":{"default_run_test_jobs":"-j2","ubuntu_version":"22.04","integrated_opcache":false}}
+  php_8_5:
+    name: PHP-8.5
+    uses: shivammathur/php-src/.github/workflows/test-suite.yml@win-reduce-sql-server-flaky-failures-PHP-8.5
+    with:
+      all_variations: true
+      branch: >-
+        {"name":"PHP-8.5","ref":"win-reduce-sql-server-flaky-failures-PHP-8.5","jobs":{"WINDOWS":{"matrix":{"include":[{"asan":false,"opcache":true,"x64":true,"zts":true},{"asan":true,"opcache":true,"x64":true,"zts":true},{"asan":false,"opcache":false,"x64":false,"zts":false}]},"config":{"vs_crt_version":"vs17","runs_on":"windows-2022"}}},"config":{"default_run_test_jobs":"-j2","ubuntu_version":"24.04","integrated_opcache":true}}
+  php_8_6:
+    name: PHP-8.6
+    uses: shivammathur/php-src/.github/workflows/test-suite.yml@win-reduce-sql-server-flaky-failures-PHP-8.6
+    with:
+      all_variations: true
+      branch: >-
+        {"name":"PHP-8.6","ref":"win-reduce-sql-server-flaky-failures-PHP-8.6","jobs":{"WINDOWS":{"matrix":{"include":[{"asan":false,"opcache":true,"x64":true,"zts":true},{"asan":true,"opcache":true,"x64":true,"zts":true},{"asan":false,"opcache":false,"x64":false,"zts":false},{"asan":false,"opcache":true,"x64":true,"zts":true,"clang":true}]},"config":{"vs_crt_version":"vs18","runs_on":"windows-2025-vs2026"}}},"config":{"default_run_test_jobs":"","ubuntu_version":"24.04","integrated_opcache":true}}
+  master:
+    name: master
+    uses: shivammathur/php-src/.github/workflows/test-suite.yml@win-reduce-sql-server-flaky-failures-master
+    with:
+      all_variations: true
+      branch: >-
+        {"name":"master","ref":"win-reduce-sql-server-flaky-failures-master","jobs":{"WINDOWS":{"matrix":{"include":[{"asan":false,"opcache":true,"x64":true,"zts":true},{"asan":true,"opcache":true,"x64":true,"zts":true},{"asan":false,"opcache":false,"x64":false,"zts":false},{"asan":false,"opcache":true,"x64":true,"zts":true,"clang":true}]},"config":{"vs_crt_version":"vs18","runs_on":"windows-2025-vs2026"}}},"config":{"default_run_test_jobs":"","ubuntu_version":"24.04","integrated_opcache":true}}
