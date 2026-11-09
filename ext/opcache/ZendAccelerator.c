@@ -3264,6 +3264,9 @@ static zend_result accel_post_startup(void)
 	file_cache_only = ZCG(accel_directives).file_cache_only;
 	if (!file_cache_only) {
 		size_t shm_size = ZCG(accel_directives).memory_consumption;
+#ifdef ZEND_WIN32
+		bool shm_created = false;
+#endif
 #ifdef HAVE_JIT
 		size_t jit_size = 0;
 		bool reattached = false;
@@ -3287,7 +3290,13 @@ static zend_result accel_post_startup(void)
 		switch (zend_shared_alloc_startup(shm_size, 0)) {
 #endif
 			case ALLOC_SUCCESS:
+#ifdef ZEND_WIN32
+				shm_created = true;
+#endif
 				if (zend_accel_init_shm() == FAILURE) {
+#ifdef ZEND_WIN32
+					zend_shared_alloc_unlock_win32();
+#endif
 					accel_startup_ok = false;
 					return FAILURE;
 				}
@@ -3345,6 +3354,13 @@ static zend_result accel_post_startup(void)
 #endif
 		zend_shared_alloc_save_state();
 		zend_shared_alloc_unlock();
+
+#ifdef ZEND_WIN32
+		if (shm_created) {
+			/* Publish the new mapping only after shared globals and JIT are ready. */
+			zend_shared_alloc_unlock_win32();
+		}
+#endif
 
 		SHM_PROTECT();
 	} else if (!ZCG(accel_directives).file_cache) {
