@@ -327,8 +327,8 @@ static int create_segments(size_t requested_size, zend_shared_segment ***shared_
 	shared_segment->pos = ACCEL_BASE_POINTER_SIZE;
 	shared_segment->size = requested_size - ACCEL_BASE_POINTER_SIZE;
 
-	zend_shared_alloc_unlock_win32();
-
+	/* Keep the mutex until accel_post_startup() has initialized the shared
+	 * globals and JIT buffer. Other processes must not reattach before then. */
 	return ALLOC_SUCCESS;
 }
 
