@@ -3525,6 +3525,9 @@ static zend_result accel_post_startup(void)
 		switch (zend_shared_alloc_startup(shm_size, jit_size)) {
 			case ALLOC_SUCCESS:
 				if (zend_accel_init_shm() == FAILURE) {
+#ifdef ZEND_WIN32
+					zend_shared_alloc_unlock_win32();
+#endif
 					accel_startup_ok = false;
 					return FAILURE;
 				}
@@ -3591,6 +3594,11 @@ static zend_result accel_post_startup(void)
 #endif
 		zend_shared_alloc_save_state();
 		zend_shared_alloc_unlock();
+
+#ifdef ZEND_WIN32
+		/* Release the startup lock retained by create_segments(). */
+		zend_shared_alloc_unlock_win32();
+#endif
 
 		SHM_PROTECT();
 	} else if (!ZCG(accel_directives).file_cache) {
