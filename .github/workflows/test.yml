@@ -1,6 +1,6 @@
 ---
 name: GH-25213 debug CI
-run-name: GH-25213 debug validation 6d9c28800ee3
+run-name: GH-25213 debug follow-up and Linux baseline comparison
 'on':
   workflow_dispatch: {}
 permissions:
@@ -10,4 +10,97 @@ jobs:
     uses: "./.github/workflows/test-suite.yml"
     with:
       all_variations: true
-      branch: '{"name":"GH25213_DEBUG","ref":"6d9c28800ee3aa3f8e8cc2f8d6838c561e5567df","config":{"default_run_test_jobs":"-j2","ubuntu_version":"22.04","integrated_opcache":false},"jobs":{"ALPINE":true,"LINUX_X64":{"matrix":{"name":[""],"asan":[false],"debug":[true],"repeat":[false],"variation":[false],"zts":[true,false]},"config":{"variation_enable_zend_max_execution_timers":true}},"LINUX_X32":{"matrix":{"debug":[true],"zts":[true,false]}},"MACOS":{"matrix":{"include":[{"arch":"ARM64","runner":"macos-26","debug":true,"zts":true},{"arch":"ARM64","runner":"macos-26","debug":true,"zts":false},{"arch":"X64","runner":"macos-15-intel","debug":true,"zts":true},{"arch":"X64","runner":"macos-15-intel","debug":true,"zts":false}]}},"WINDOWS":{"matrix":{"x64":[true,false],"zts":[true,false],"opcache":[true],"asan":[false],"clang":[false]},"config":{"vs_crt_version":"vs17","runs_on":"windows-2022"}},"FREEBSD":{"matrix":{"zts":[true,false]}}}}'
+      branch: '{"name":"GH25213_DEBUG","ref":"6d9c28800ee3aa3f8e8cc2f8d6838c561e5567df","config":{"default_run_test_jobs":"-j2","ubuntu_version":"22.04","integrated_opcache":false},"jobs":{"ALPINE":false,"LINUX_X64":false,"LINUX_X32":false,"MACOS":{"matrix":{"include":[{"arch":"X64","runner":"macos-15-intel","debug":true,"zts":true},{"arch":"X64","runner":"macos-15-intel","debug":true,"zts":false}]}},"WINDOWS":{"matrix":{"x64":[true,false],"zts":[true,false],"opcache":[true],"asan":[false],"clang":[false]},"config":{"vs_crt_version":"vs17","runs_on":"windows-2022"}},"FREEBSD":false}}'
+  LINUX_DIAG:
+    name: Linux x86 ${{ matrix.source.name }} / ${{ matrix.runner }}
+    runs-on: "${{ matrix.runner }}"
+    container:
+      image: ubuntu:22.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+        - ubuntu-24.04
+        - ubuntu-26.04
+        source:
+        - name: baseline
+          ref: 3b749a604aeea38a6ea4626068d227c7e0ce05c6
+        - name: patched
+          ref: 6d9c28800ee3aa3f8e8cc2f8d6838c561e5567df
+    env:
+      NO_INTERACTION: '1'
+      REPORT_EXIT_STATUS: '1'
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        ref: "${{ matrix.source.ref }}"
+    - name: apt
+      uses: "./.github/actions/apt-x32"
+    - name: Install diagnostic tools
+      run: apt-get install -y gdb strace python3
+    - name: ccache
+      uses: "./.github/actions/ccache"
+      with:
+        name: LINUX_X32_DEBUG_NTS
+    - name: Configure debug NTS
+      uses: "./.github/actions/configure-x32"
+      with:
+        configurationParameters: "--enable-debug --disable-zts"
+    - name: Build
+      run: make -j$(nproc) > build.log 2>&1
+    - name: Compare socket creation and GH-25165
+      shell: bash
+      run: |
+        set -u
+        mkdir -p diagnostics
+        sapi/cli/php -n -r 'var_dump(PHP_DEBUG, PHP_ZTS, PHP_INT_SIZE);' | tee diagnostics/runtime.txt
+        sapi/cli/php -n -r '$s=stream_socket_server("tcp://127.0.0.1:0",$errno,$errstr); var_dump($s,$errno,$errstr); exit($s===false);' > diagnostics/socket.txt 2>&1
+        echo "socket_exit=$?" >> diagnostics/socket.txt
+        strace -f -o diagnostics/socket.strace sapi/cli/php -n -r 'stream_socket_server("tcp://127.0.0.1:0");'
+        cat diagnostics/socket.txt
+        cat /proc/version
+        # Sequential execution isolates the PHPT from the separate worker-socket failure.
+        for mode in tracing disable function; do
+          TEST_PHP_JUNIT="diagnostics/$mode.xml" sapi/cli/php -n run-tests.php -n -d "zend_extension=$PWD/modules/opcache.so" -d opcache.enable_cli=1 -d opcache.protect_memory=1 -d opcache.jit_buffer_size=64M -d "opcache.jit=$mode" -q --offline --show-diff -g FAIL,BORK,LEAK,XLEAK ext/opcache/tests/jit/gh25165.phpt ext/opcache/tests/jit/gh16821.phpt ext/opcache/tests/jit/gh24337.phpt > "diagnostics/$mode.log" 2>&1
+          echo "$mode test exit: $?"
+          cat "diagnostics/$mode.log"
+        done
+        python3 - <<'PY'
+        import pathlib, subprocess, json, re
+        text=pathlib.Path('ext/opcache/tests/jit/gh25165.phpt').read_text()
+        p=pathlib.Path('diagnostics/repro.php')
+        p.write_text(text.split('--FILE--\n',1)[1].split('--EXPECT--',1)[0])
+        args=['sapi/cli/php','-n','-d','zend_extension='+str(pathlib.Path('modules/opcache.so').resolve()),'-d','opcache.protect_memory=1']
+        for ini in text.split('--INI--\n',1)[1].split('--FILE--',1)[0].splitlines():
+            args += ['-d',ini]
+        args += [str(p)]
+        results=[]
+        for i in range(30):
+            try:
+                r=subprocess.run(args,capture_output=True,text=True,timeout=30)
+                results.append({'iteration':i,'exit':r.returncode,'stdout':r.stdout,'stderr':r.stderr})
+            except subprocess.TimeoutExpired:
+                results.append({'iteration':i,'timeout':True})
+        pathlib.Path('diagnostics/repetitions.json').write_text(json.dumps(results,indent=2))
+        print(json.dumps(results,indent=2))
+        for i in range(5):
+            r=subprocess.run(['gdb','-batch','-ex','set pagination off','-ex','set disable-randomization off','-ex','run','-ex','bt full','-ex','info registers','-ex','x/12i $pc-16','--args']+args,capture_output=True,text=True,timeout=60)
+            pathlib.Path(f'diagnostics/gdb-{i}.txt').write_text(r.stdout+r.stderr)
+            if 'SIGSEGV' in r.stdout or 'SIGABRT' in r.stdout:
+                print(r.stdout+r.stderr)
+                break
+        PY
+    - name: Upload diagnostic evidence
+      if: "${{ always() }}"
+      uses: actions/upload-artifact@v6
+      with:
+        name: linux-diag-${{ matrix.source.name }}-${{ matrix.runner }}
+        path: |
+          diagnostics/
+          build.log
+          config.log
+          config.nice
+          ext/opcache/tests/jit/*.diff
+          ext/opcache/tests/jit/*.out
+        retention-days: 7
