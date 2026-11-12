@@ -466,6 +466,11 @@ jobs:
     - name: Extra tests
       uses: "./.github/actions/extra-tests"
       if: "${{ !cancelled() && steps.verify.outcome == 'success' }}"
+    - name: Exclude only validation evidence from the source cleanliness check
+      run: 'printf ''%s\n'' /debug-runtime.json /source-commit.txt /test.xml /test-opcache.xml
+        /test-tracing-jit.xml /test-function-jit.xml /dependency-versions.txt >> .git/info/exclude
+
+'
     - name: Verify generated files are up to date
       uses: "./.github/actions/verify-generated-files"
     - name: Upload debug validation evidence
@@ -568,12 +573,13 @@ jobs:
         # Avoid loading every unrelated debug extension during test discovery.
         $extdir = Join-Path $env:RUNNER_TEMP 'opcache-test-extensions'
         New-Item -ItemType Directory -Force $extdir | Out-Null
+        Copy-Item "$build\php_opcache.dll" $extdir
         $env:TEST_PHP_EXECUTABLE = "$build\php.exe"
         $env:TEST_PHP_JUNIT = 'opcache-tests.xml'
         & "$build\php.exe" -n run-tests.php -n -d "extension_dir=$extdir" -d "zend_extension=$build\php_opcache.dll" -d opcache.enable_cli=1 -d opcache.jit=tracing -d opcache.jit_buffer_size=64M -d opcache.protect_memory=1 -q -j2 --offline --show-diff --no-progress -g FAIL,BORK,LEAK,XLEAK ext/opcache
         $testExit = $LASTEXITCODE
         [xml]$junit = Get-Content opcache-tests.xml -Raw
-        foreach ($test in @('gh25213.phpt', 'gh16821.phpt', 'gh24337.phpt')) {
+        foreach ($test in @('gh25213.phpt', 'gh16821.phpt', 'gh24337.phpt', 'gh17733.phpt')) {
           $cases = @($junit.SelectNodes('//testcase') | Where-Object { $_.name.Contains($test) })
           if ($cases.Count -ne 1 -or $cases[0].SelectNodes('skipped|failure|error').Count -ne 0) { throw "Required test did not pass: $test" }
           Write-Host "Confirmed PASS: $test"
