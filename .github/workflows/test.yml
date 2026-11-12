@@ -10,7 +10,7 @@ jobs:
     uses: "./.github/workflows/test-suite.yml"
     with:
       all_variations: true
-      branch: '{"name":"GH25213_DEBUG","ref":"6d9c28800ee3aa3f8e8cc2f8d6838c561e5567df","config":{"default_run_test_jobs":"-j2","ubuntu_version":"22.04","integrated_opcache":false},"jobs":{"ALPINE":false,"LINUX_X64":false,"LINUX_X32":false,"MACOS":{"matrix":{"include":[{"arch":"X64","runner":"macos-15-intel","debug":true,"zts":true},{"arch":"X64","runner":"macos-15-intel","debug":true,"zts":false}]}},"WINDOWS":{"matrix":{"x64":[true,false],"zts":[true,false],"opcache":[true],"asan":[false],"clang":[false]},"config":{"vs_crt_version":"vs17","runs_on":"windows-2022"}},"FREEBSD":false}}'
+      branch: '{"name":"GH25213_DEBUG","ref":"6d9c28800ee3aa3f8e8cc2f8d6838c561e5567df","config":{"default_run_test_jobs":"-j2","ubuntu_version":"22.04","integrated_opcache":false},"jobs":{"ALPINE":false,"LINUX_X64":false,"LINUX_X32":false,"MACOS":{"matrix":{"include":[{"arch":"X64","runner":"macos-15-intel","debug":true,"zts":true},{"arch":"X64","runner":"macos-15-intel","debug":true,"zts":false}]}},"WINDOWS":false,"FREEBSD":false}}'
   LINUX_DIAG:
     name: Linux x86 ${{ matrix.source.name }} / ${{ matrix.runner }}
     runs-on: "${{ matrix.runner }}"
@@ -53,6 +53,7 @@ jobs:
       shell: bash
       run: |
         set -u
+        set +e
         mkdir -p diagnostics
         sapi/cli/php -n -r 'var_dump(PHP_DEBUG, PHP_ZTS, PHP_INT_SIZE);' | tee diagnostics/runtime.txt
         sapi/cli/php -n -r '$s=stream_socket_server("tcp://127.0.0.1:0",$errno,$errstr); var_dump($s,$errno,$errstr); exit($s===false);' > diagnostics/socket.txt 2>&1

@@ -400,10 +400,9 @@ jobs:
         core="$(brew --repository)/Library/Taps/homebrew/homebrew-core"
         mkdir -p "$core"
         git -C "$core" init
-        git -C "$core" remote add origin https://github.com/Homebrew/homebrew-core.git
-        git -C "$core" fetch --depth=1 origin 229d435d9fc7d166b417e94ce66db01d6b34cf97
+        git -C "$core" fetch --depth=1 https://github.com/Homebrew/homebrew-core.git 229d435d9fc7d166b417e94ce66db01d6b34cf97
         git -C "$core" checkout --detach FETCH_HEAD
-        brew install --force-bottle autoconf webp tidy-html5 libzip libsodium icu4c bison re2c bzip2 enchant libffi intltool libiconv t1lib libxml2 libjpeg libxslt openssl@3
+        brew install --force-bottle --overwrite autoconf webp tidy-html5 libzip libsodium icu4c bison re2c bzip2 enchant libffi intltool libiconv t1lib libxml2 libjpeg libxslt openssl@3
         brew list --versions > dependency-versions.txt
         cat dependency-versions.txt
     - name: ccache
